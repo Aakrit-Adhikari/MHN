@@ -1,14 +1,14 @@
 import { Router } from "express";
 import fs from "fs";
 import path from "path";
-import { prisma } from "../../config/database";
-import { authenticate, requireAdmin } from "../../middleware/auth.middleware";
-import { normalizeUploadPath, uploadBlogCoverImage } from "../../middleware/upload.middleware";
+import { prisma } from "../../config/database.js";
+import { authenticate, requireAdmin } from "../../middleware/auth.middleware.js";
+import { normalizeUploadPath, uploadBlogCoverImage } from "../../middleware/upload.middleware.js";
 import {
     createBlogPostSchema,
     partialBlogPostSchema,
     updateBlogPostSchema,
-} from "../../types/blog.schema";
+} from "../../types/blog.schema.js";
 
 export const publicBlogRouter = Router();
 export const adminBlogRouter = Router();

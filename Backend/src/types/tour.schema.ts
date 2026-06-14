@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { slugify } from "../utils/slugify";
+import { slugify } from "../utils/slugify.js";
 
 export const createTourSchema = z.object({
     title: z.string().min(5, "Title is too short"),

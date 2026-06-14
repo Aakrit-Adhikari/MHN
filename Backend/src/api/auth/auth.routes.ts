@@ -1,9 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { prisma } from "../../config/database";
-import { env } from "../../config/env";
-import { loginSchema } from "../../types/auth.schema";
+import { prisma } from "../../config/database.js";
+import { env } from "../../config/env.js";
+import { loginSchema } from "../../types/auth.schema.js";
 
 const router = Router();
 
