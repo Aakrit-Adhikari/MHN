@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { prisma } from '../../config/database';
-import { createTourSchema, tourResponseSchema } from '../../types/tour.schema';
-import { uploadTourImage, normalizeUploadPath } from '../../middleware/upload.middleware';
-import { authenticate, requireAdmin } from '../../middleware/auth.middleware';
+import { prisma } from '../../config/database.js';
+import { createTourSchema, tourResponseSchema } from '../../types/tour.schema.js';
+import { uploadTourImage, normalizeUploadPath } from '../../middleware/upload.middleware.js';
+import { authenticate, requireAdmin } from '../../middleware/auth.middleware.js';
 
 const router = Router();
 

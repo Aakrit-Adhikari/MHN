@@ -16,7 +16,9 @@ const envSchema = z.object({
 
     ADMIN_EMAIL: z.string().email(),
     ADMIN_PASSWORD: z.string().min(6),
-
+    ADMIN_COOKIE_NAME: z.string().default("mhn_admin"),
+    ADMIN_COOKIE_SECRET: z.string().min(16),
+    ADMIN_SESSION_SECRET: z.string().min(16),
 });
 
 const parsedEnv = envSchema.parse(process.env);

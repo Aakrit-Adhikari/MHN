@@ -1,6 +1,14 @@
-import app from "./app";
-import { env } from "./config/env";
+import app from "./app.js";
+import { createDefaultAdmin } from "./admin/admin.auth.js";
+import { env } from "./config/env.js";
 
-app.listen(env.PORT, () => {
-    console.log(`Backend running on port ${env.PORT}`);
-});
+async function startServer() {
+    await createDefaultAdmin();
+
+    app.listen(env.PORT, () => {
+        console.log(`Server running on http://localhost:${env.PORT}`);
+        console.log(`Admin panel running on http://localhost:${env.PORT}/admin`);
+    });
+}
+
+startServer();

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { prisma } from '../../config/database';
-import { CreateInquirySchema } from '../../types/inquiry.schema';
-import { authenticate, requireAdmin } from '../../middleware/auth.middleware';
+import { prisma } from '../../config/database.js';
+import { CreateInquirySchema } from '../../types/inquiry.schema.js';
+import { authenticate, requireAdmin } from '../../middleware/auth.middleware.js';
 
 const router = Router();
 
