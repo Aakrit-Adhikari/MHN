@@ -2,11 +2,10 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get("/backend-health", (_req, res) => {
+router.get("/", (_req, res) => {
     res.status(200).json({
         success: true,
-        message: "Mountain Helicopters backend is healthy",
-        timestamp: new Date().toISOString(),
+        message: "Backend is running",
     });
 });
 
