@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -66,7 +67,6 @@ enum InquiryType {
   CHARTER
   CONTACT
 }
-
 
 model NavigationItem {
   id         String   @id @default(cuid())
