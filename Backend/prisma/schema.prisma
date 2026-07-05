@@ -1,13 +1,82 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  passwordHash String
+}
+
+model Tour {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  summary     String
+  content     String
+  priceFrom   Int?
+  duration    String?
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  photoUrl    String?
+  inquiries   Inquiry[]
+}
+
+model Inquiry {
+  id          String      @id @default(cuid())
+  type        InquiryType
+  name        String
+  email       String
+  phone       String?
+  message     String
+  locale      String      @default("en")
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  tourId      String?
+  createdAt   DateTime    @default(now())
+  tour        Tour?       @relation(fields: [tourId], references: [id])
+}
+
+model BlogPost {
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  coverImageUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum InquiryType {
+  BOOKING
+  CHARTER
+  CONTACT
+}
+
+model NavigationItem {
+  id         String   @id @default(cuid())
+  label      String
+  slug       String   @unique
+  url        String
+  location   String   @default("HOME_NAVBAR")
+  order      Int      @default(0)
+  isVisible  Boolean  @default(true)
+  isExternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
