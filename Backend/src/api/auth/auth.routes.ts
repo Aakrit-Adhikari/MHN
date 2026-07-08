@@ -1,6 +1,7 @@
-import { Router } from "express";
 import bcrypt from "bcryptjs";
+import { Router } from "express";
 import jwt from "jsonwebtoken";
+
 import { prisma } from "../../config/database.js";
 import { env } from "../../config/env.js";
 import { loginSchema } from "../../types/auth.schema.js";
@@ -9,15 +10,21 @@ const router = Router();
 
 router.post("/login", async (req, res, next) => {
     try {
-        const { email, password } = loginSchema.parse(req.body);
-        const user = await prisma.user.findUnique({
-            where: { email },
-        });
+        const { username, password } = loginSchema.parse(req.body);
+        const user = await prisma.user.findUnique({ where: { username } });
 
         if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
             res.status(401).json({
                 success: false,
-                message: "Invalid email or password",
+                message: "Invalid username or password",
+            });
+            return;
+        }
+
+        if (user.status && user.status !== "ACTIVE") {
+            res.status(403).json({
+                success: false,
+                message: "This admin user is disabled.",
             });
             return;
         }
@@ -37,7 +44,8 @@ router.post("/login", async (req, res, next) => {
                 token,
                 user: {
                     id: user.id,
-                    email: user.email,
+                    email: user.email ?? null,
+                    username: user.username ?? null,
                     name: user.name,
                     role: user.role,
                 },

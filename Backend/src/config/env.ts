@@ -15,10 +15,8 @@ const envSchema = z.object({
     JWT_EXPIRES_IN: z.string().default("1d"),
 
     ADMIN_EMAIL: z.string().email(),
+    ADMIN_USERNAME: z.string().min(3).optional(),
     ADMIN_PASSWORD: z.string().min(6),
-    ADMIN_COOKIE_NAME: z.string().default("mhn_admin"),
-    ADMIN_COOKIE_SECRET: z.string().min(16),
-    ADMIN_SESSION_SECRET: z.string().min(16),
 });
 
 const parsedEnv = envSchema.parse(process.env);

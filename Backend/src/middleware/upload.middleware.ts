@@ -1,6 +1,10 @@
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import fs from "fs";
+import multer from "multer";
+import path from "path";
+
+const maxImageFileSize = 5 * 1024 * 1024;
+const tourUploadDir = "uploads/tours/";
+const blogUploadDir = "uploads/blogs/";
 
 const ensureUploadDir = (uploadDir: string) => {
     if (!fs.existsSync(uploadDir)) {
@@ -8,62 +12,89 @@ const ensureUploadDir = (uploadDir: string) => {
     }
 };
 
-// Ensure the upload directories exist
-const tourUploadDir = 'uploads/tours/';
-const blogUploadDir = 'uploads/blogs/';
-
 ensureUploadDir(tourUploadDir);
 ensureUploadDir(blogUploadDir);
 
-const createImageStorage = (uploadDir: string) => {
-    return multer.diskStorage({
-        destination: (req, file, cb) => {
+const createImageStorage = (uploadDir: string) =>
+    multer.diskStorage({
+        destination: (_req, _file, cb) => {
             cb(null, uploadDir);
         },
-        filename: (req, file, cb) => {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        filename: (_req, file, cb) => {
+            const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+            cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
         },
     });
-}
 
-// Only allow image files
+const getSafeSlug = (slug: string | string[] | undefined) => {
+    const value = Array.isArray(slug) ? slug[0] : slug;
+    return (value || "uncategorized").replace(/[^a-zA-Z0-9-_]/g, "-");
+};
+
+const galleryStorage = multer.diskStorage({
+    destination: (req, _file, cb) => {
+        const uploadDir = path.join("uploads", "gallery", getSafeSlug(req.params.slug));
+        ensureUploadDir(uploadDir);
+        cb(null, uploadDir);
+    },
+    filename: (_req, file, cb) => {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    },
+});
+
 const fileFilter = (
-    req: Express.Request,
+    _req: Express.Request,
     file: Express.Multer.File,
     cb: multer.FileFilterCallback
 ) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith("image/")) {
         cb(null, true);
-    } else {
-        cb(new Error('Only image files are allowed!'));
+        return;
     }
+
+    cb(new Error("Only image files are allowed!"));
 };
 
-// Export the multer middleware
+export const uploadTourImages = multer({
+    storage: createImageStorage(tourUploadDir),
+    fileFilter,
+    limits: { fileSize: maxImageFileSize },
+}).fields([
+    { name: "coverImage", maxCount: 1 },
+    { name: "contentImage", maxCount: 1 },
+    { name: "photo", maxCount: 1 },
+]);
+
 export const uploadTourImage = multer({
     storage: createImageStorage(tourUploadDir),
     fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB max
-    },
-}).single('photo');
+    limits: { fileSize: maxImageFileSize },
+}).single("photo");
 
 export const uploadBlogCoverImage = multer({
     storage: createImageStorage(blogUploadDir),
     fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024,
-    },
-}).single('coverImage');
+    limits: { fileSize: maxImageFileSize },
+}).single("coverImage");
 
-/**
- * Normalizes a multer file path to a clean relative URL path.
- * Handles Windows backslashes and ensures forward slashes.
- *
- * Saves:  "uploads/tours/photo-1234567890.jpg"
- * Serves: "https://yourdomain.com/uploads/tours/photo-1234567890.jpg"
- */
-export const normalizeUploadPath = (filePath: string): string => {
-    return filePath.replace(/\\/g, '/');
+export const uploadTourGalleryImage = multer({
+    storage: galleryStorage,
+    fileFilter,
+    limits: { fileSize: maxImageFileSize },
+}).single("image");
+
+export const normalizeUploadPath = (filePath: string) => {
+    return filePath.replace(/\\/g, "/");
+};
+
+export const getUploadedFile = (
+    files: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] } | undefined,
+    fieldName: string
+) => {
+    if (!files || Array.isArray(files)) {
+        return undefined;
+    }
+
+    return files[fieldName]?.[0];
 };

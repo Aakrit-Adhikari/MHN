@@ -9,10 +9,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "jsx": "react-jsx",
     "types": ["node"]
   },
-  "include": ["src"],
+  "include": ["src", "dist/api/tours"],
   "exclude": ["node_modules", "dist"]
 }
