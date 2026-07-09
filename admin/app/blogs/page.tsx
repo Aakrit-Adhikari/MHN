@@ -1,13 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Edit, FilePlus, ImageIcon, Trash2, Upload, X } from "lucide-react";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import type { JoditEditorProps } from "jodit-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/State";
 import { apiRequest, getAssetUrl, getStoredToken } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useApiData } from "@/lib/useApiData";
 import type { BlogPost } from "@/types/api";
+
+const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
 
 type BlogForm = {
   slug: string;
@@ -56,6 +60,16 @@ function getBlogCoverUrl(post: BlogPost) {
   return post.coverImageUrl ?? post.imageUrl ?? null;
 }
 
+function getTextFromHtml(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function BlogsPage() {
   const { data, loading, error, reload } = useApiData<BlogPost[]>("/admin/blogs", true);
   const [editing, setEditing] = useState<BlogPost | null>(null);
@@ -64,6 +78,50 @@ export default function BlogsPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [coverImage, setCoverImage] = useState<File | null>(null);
+  const editorConfig = useMemo<JoditEditorProps["config"]>(
+    () => ({
+      height: 380,
+      placeholder: "Write the full blog content here...",
+      toolbarAdaptive: false,
+      toolbarSticky: false,
+      askBeforePasteHTML: false,
+      askBeforePasteFromWord: false,
+      defaultActionOnPaste: "insert_clear_html" as const,
+      buttons: [
+        "bold",
+        "italic",
+        "underline",
+        "strikethrough",
+        "|",
+        "ul",
+        "ol",
+        "outdent",
+        "indent",
+        "|",
+        "paragraph",
+        "fontsize",
+        "brush",
+        "|",
+        "align",
+        "link",
+        "image",
+        "table",
+        "hr",
+        "quote",
+        "|",
+        "undo",
+        "redo",
+        "eraser",
+        "source",
+        "fullsize"
+      ],
+      uploader: {
+        insertImageAsBase64URI: true
+      },
+      removeButtons: ["about"]
+    }),
+    []
+  );
 
   function openNew() {
     setEditing(null);
@@ -90,6 +148,12 @@ export default function BlogsPage() {
     setSaving(true);
     setActionError("");
 
+    if (getTextFromHtml(form.content).length < 10) {
+      setActionError("Blog content must be at least 10 characters.");
+      setSaving(false);
+      return;
+    }
+
     const body = new FormData();
     if (form.slug) body.append("slug", form.slug);
     body.append("title", form.title);
@@ -99,8 +163,8 @@ export default function BlogsPage() {
     if (form.category) body.append("category", form.category);
     body.append("isPublished", String(form.isPublished));
     if (form.publishedAt) body.append("publishedAt", form.publishedAt);
-    if (form.metaTitle) body.append("metaTitle", form.metaTitle);
-    if (form.metaDescription) body.append("metaDescription", form.metaDescription);
+    body.append("metaTitle", form.metaTitle);
+    body.append("metaDescription", form.metaDescription);
     if (coverImage) body.append("coverImage", coverImage);
 
     try {
@@ -249,10 +313,15 @@ export default function BlogsPage() {
                 Excerpt
                 <textarea value={form.excerpt} onChange={(event) => setForm({ ...form, excerpt: event.target.value })} maxLength={255} rows={3} />
               </label>
-              <label className="md:col-span-2">
-                Content
-                <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} required minLength={10} rows={10} />
-              </label>
+              <div className="md:col-span-2 rich-editor-field">
+                <span className="rich-editor-label">Content</span>
+                <JoditEditor
+                  value={form.content}
+                  config={editorConfig}
+                  onBlur={(content) => setForm((current) => ({ ...current, content }))}
+                  onChange={(content) => setForm((current) => ({ ...current, content }))}
+                />
+              </div>
               <label>
                 Published Date
                 <input value={form.publishedAt} onChange={(event) => setForm({ ...form, publishedAt: event.target.value })} type="date" />

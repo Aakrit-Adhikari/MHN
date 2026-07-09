@@ -45,6 +45,8 @@ export type Tour = {
   summary: string;
   content?: string | null;
   description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   price?: number | null;
   priceFrom?: number | null;
   duration: string | null;
@@ -74,6 +76,18 @@ export type BlogPost = {
   metaDescription?: string | null;
   coverImageUrl?: string | null;
   imageUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AlertPopup = {
+  id: string;
+  title: string | null;
+  imageUrl: string;
+  linkUrl: string | null;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

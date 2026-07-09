@@ -110,6 +110,8 @@ const normalizeTourBody = (body: Record<string, any>) => {
         "price",
         "coverImageUrl",
         "contentImageUrl",
+        "metaTitle",
+        "metaDescription",
     ].forEach((key) => {
         if (body[key] === "") {
             body[key] = null;
@@ -144,6 +146,8 @@ router.post("/", authenticate, requireAdmin, uploadTourImages, async (req, res, 
                 slug: validatedData.slug,
                 summary: validatedData.summary,
                 description: validatedData.description,
+                metaTitle: validatedData.metaTitle,
+                metaDescription: validatedData.metaDescription,
                 duration: validatedData.duration,
                 altitude: validatedData.altitude,
                 location: validatedData.location,

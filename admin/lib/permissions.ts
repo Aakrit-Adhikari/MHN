@@ -14,15 +14,24 @@ export const modulePermissions: Record<string, PermissionKey> = {
   "/users": "VIEW_USERS"
 };
 
+export const moduleRoleRequirements: Record<string, User["role"]> = {
+  "/alert-popup": "SUPER_ADMIN"
+};
+
 export function isSuperAdmin(user: User | null | undefined) {
-  return user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  return user?.role === "SUPER_ADMIN";
 }
 
 export function hasPermission(user: User | null | undefined, permission: PermissionKey) {
-  return isSuperAdmin(user) || Boolean(user?.permissions?.includes(permission));
+  return user?.role === "SUPER_ADMIN" || user?.role === "ADMIN" || Boolean(user?.permissions?.includes(permission));
 }
 
 export function permissionForPath(pathname: string) {
   const entry = Object.entries(modulePermissions).find(([path]) => pathname === path || pathname.startsWith(`${path}/`));
+  return entry?.[1] ?? null;
+}
+
+export function roleRequiredForPath(pathname: string) {
+  const entry = Object.entries(moduleRoleRequirements).find(([path]) => pathname === path || pathname.startsWith(`${path}/`));
   return entry?.[1] ?? null;
 }

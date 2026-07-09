@@ -95,6 +95,22 @@ export const requireAdmin = (
     next();
 };
 
+export const requireSuperAdmin = (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    if (req.user?.role !== "SUPER_ADMIN") {
+        res.status(403).json({
+            success: false,
+            message: "Super admin access is required",
+        });
+        return;
+    }
+
+    next();
+};
+
 export const requirePermission = (permission: PermissionKey) => (
     req: AuthenticatedRequest,
     res: Response,

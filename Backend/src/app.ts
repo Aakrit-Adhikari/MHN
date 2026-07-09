@@ -10,6 +10,10 @@ import adminDashboardRoutes from "./api/admin/dashboard.routes.js";
 import adminBookingRoutes from "./api/admin/bookings.routes.js";
 import adminPermissionRoutes from "./api/admin/permissions.routes.js";
 import adminUserRoutes from "./api/admin/users.routes.js";
+import {
+    adminAlertPopupRouter,
+    publicAlertPopupRouter,
+} from "./api/alert-popups/alert-popup.routes.js";
 import { adminBlogRouter, publicBlogRouter } from "./api/blogs/blog.routes.js";
 import inquiryRoutes from "./api/inquiries/inquiries.routes.js";
 import navigationRoutes from "./api/navigation/navigation.routes.js";
@@ -38,7 +42,9 @@ app.use("/api/tours", tourRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/navigation", navigationRoutes);
 app.use("/api/blogs", publicBlogRouter);
+app.use("/api/alert-popup", publicAlertPopupRouter);
 app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/admin/alert-popups", adminAlertPopupRouter);
 app.use("/api/admin/bookings", adminBookingRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/permissions", adminPermissionRoutes);

@@ -750,6 +750,15 @@ tr:hover td {
   background: #f8fafc;
 }
 
+.alert-popup-thumb {
+  width: 112px;
+  height: 70px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f8fafc;
+}
+
 .inquiry-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -923,6 +932,41 @@ tr:hover td {
 
 .form-grid textarea {
   resize: vertical;
+}
+
+.rich-editor-field {
+  min-width: 0;
+}
+
+.rich-editor-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.rich-editor-field .jodit-container {
+  border-color: #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rich-editor-field .jodit-workplace {
+  min-height: 300px;
+}
+
+.rich-editor-field .jodit-wysiwyg {
+  color: #0a1929;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.rich-editor-field .jodit-wysiwyg ul,
+.rich-editor-field .jodit-wysiwyg ol {
+  padding-left: 24px;
 }
 
 .form-section-title {

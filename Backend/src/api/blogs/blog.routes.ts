@@ -46,6 +46,12 @@ const normalizeBlogBody = (body: Record<string, any>) => {
     if (body.imageUrl === "") {
         body.imageUrl = null;
     }
+
+    ["metaTitle", "metaDescription"].forEach((key) => {
+        if (body[key] === "") {
+            body[key] = null;
+        }
+    });
 };
 
 publicBlogRouter.get("/", async (_req, res, next) => {
@@ -106,6 +112,8 @@ adminBlogRouter.post(
                     title: validatedData.title,
                     slug: validatedData.slug,
                     content: validatedData.content,
+                    metaTitle: validatedData.metaTitle,
+                    metaDescription: validatedData.metaDescription,
                     imageUrl: req.file
                         ? normalizeUploadPath(req.file.path)
                         : validatedData.imageUrl ?? null,

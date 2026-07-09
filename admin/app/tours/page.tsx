@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Edit, ImageIcon, Plus, Timer, Trash2, Upload, X } from "lucide-react";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import type { JoditEditorProps } from "jodit-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/State";
 import { apiRequest, getAssetUrl, getStoredToken } from "@/lib/api";
@@ -9,11 +11,15 @@ import { formatDate, money } from "@/lib/format";
 import { useApiData } from "@/lib/useApiData";
 import type { Tour } from "@/types/api";
 
+const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
+
 type TourForm = {
   title: string;
   slug: string;
   summary: string;
   content: string;
+  metaTitle: string;
+  metaDescription: string;
   priceFrom: string;
   duration: string;
   isPublished: boolean;
@@ -24,6 +30,8 @@ const emptyTour: TourForm = {
   slug: "",
   summary: "",
   content: "",
+  metaTitle: "",
+  metaDescription: "",
   priceFrom: "",
   duration: "",
   isPublished: true
@@ -36,6 +44,8 @@ function toForm(tour?: Tour): TourForm {
     slug: tour.slug,
     summary: tour.summary,
     content: tour.content ?? tour.description ?? "",
+    metaTitle: tour.metaTitle ?? "",
+    metaDescription: tour.metaDescription ?? "",
     priceFrom: tour.priceFrom || tour.price ? String(tour.priceFrom ?? tour.price) : "",
     duration: tour.duration ?? "",
     isPublished: tour.isPublished ?? true
@@ -46,6 +56,16 @@ function getTourPrice(tour: Tour) {
   return tour.priceFrom ?? tour.price ?? null;
 }
 
+function getTextFromHtml(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function ToursPage() {
   const { data, loading, error, reload } = useApiData<Tour[]>("/tours");
   const [editing, setEditing] = useState<Tour | null>(null);
@@ -54,6 +74,50 @@ export default function ToursPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const editorConfig = useMemo<JoditEditorProps["config"]>(
+    () => ({
+      height: 380,
+      placeholder: "Write the full tour content here...",
+      toolbarAdaptive: false,
+      toolbarSticky: false,
+      askBeforePasteHTML: false,
+      askBeforePasteFromWord: false,
+      defaultActionOnPaste: "insert_clear_html" as const,
+      buttons: [
+        "bold",
+        "italic",
+        "underline",
+        "strikethrough",
+        "|",
+        "ul",
+        "ol",
+        "outdent",
+        "indent",
+        "|",
+        "paragraph",
+        "fontsize",
+        "brush",
+        "|",
+        "align",
+        "link",
+        "image",
+        "table",
+        "hr",
+        "quote",
+        "|",
+        "undo",
+        "redo",
+        "eraser",
+        "source",
+        "fullsize"
+      ],
+      uploader: {
+        insertImageAsBase64URI: true
+      },
+      removeButtons: ["about"]
+    }),
+    []
+  );
 
   function openNew() {
     setEditing(null);
@@ -80,11 +144,19 @@ export default function ToursPage() {
     setSaving(true);
     setActionError("");
 
+    if (getTextFromHtml(form.content).length < 10) {
+      setActionError("Tour content must be at least 10 characters.");
+      setSaving(false);
+      return;
+    }
+
     const body = new FormData();
     body.append("title", form.title);
     if (form.slug) body.append("slug", form.slug);
     body.append("summary", form.summary);
     body.append("content", form.content);
+    body.append("metaTitle", form.metaTitle);
+    body.append("metaDescription", form.metaDescription);
     if (form.priceFrom) body.append("priceFrom", form.priceFrom);
     if (form.duration) body.append("duration", form.duration);
     body.append("isPublished", String(form.isPublished));
@@ -232,10 +304,23 @@ export default function ToursPage() {
                 Summary
                 <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} required minLength={10} maxLength={255} rows={3} />
               </label>
-              <label className="md:col-span-2">
-                Content
-                <textarea value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} required rows={6} />
+              <label>
+                SEO Title
+                <input value={form.metaTitle} onChange={(event) => setForm({ ...form, metaTitle: event.target.value })} />
               </label>
+              <label>
+                SEO Description
+                <textarea value={form.metaDescription} onChange={(event) => setForm({ ...form, metaDescription: event.target.value })} maxLength={255} rows={3} />
+              </label>
+              <div className="md:col-span-2 rich-editor-field">
+                <span className="rich-editor-label">Content</span>
+                <JoditEditor
+                  value={form.content}
+                  config={editorConfig}
+                  onBlur={(content) => setForm((current) => ({ ...current, content }))}
+                  onChange={(content) => setForm((current) => ({ ...current, content }))}
+                />
+              </div>
               <label className="md:col-span-2">
                 Cover Image
                 <span className="file-input-row">

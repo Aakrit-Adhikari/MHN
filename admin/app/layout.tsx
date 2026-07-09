@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "jodit/es2021/jodit.min.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

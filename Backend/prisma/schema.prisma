@@ -63,6 +63,8 @@ model Tour {
   title           String
   summary         String
   description     String
+  metaTitle       String?       @map("meta_title")
+  metaDescription String?       @map("meta_description")
   duration        String?
   altitude        String?
   location        String?
@@ -171,15 +173,31 @@ model Booking {
 }
 
 model BlogPost {
-  id        String   @id @default(cuid())
-  title     String
-  slug      String   @unique
-  content   String
-  imageUrl  String?  @map("image_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  content         String
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description")
+  imageUrl        String?   @map("image_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("blogs")
+}
+
+model AlertPopup {
+  id          String    @id @default(cuid())
+  title       String?
+  imageUrl    String    @map("image_url")
+  linkUrl     String?   @map("link_url")
+  isActive    Boolean   @default(true) @map("is_active")
+  startsAt    DateTime? @map("starts_at")
+  endsAt      DateTime? @map("ends_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("alert_popups")
 }
 
 enum UserRole {

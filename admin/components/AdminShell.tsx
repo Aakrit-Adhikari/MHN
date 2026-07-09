@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Navigation,
   PieChart,
+  PictureInPicture2,
   Search,
   Settings,
   UserRoundCog,
@@ -24,7 +25,7 @@ import { useEffect, useState } from "react";
 import { AccessDenied } from "@/components/AccessDenied";
 import { clearStoredSession, getStoredToken, getStoredUser, getStoredUserName } from "@/lib/api";
 import { initials } from "@/lib/format";
-import { hasPermission, permissionForPath } from "@/lib/permissions";
+import { hasPermission, isSuperAdmin, permissionForPath, roleRequiredForPath } from "@/lib/permissions";
 import type { PermissionKey, User } from "@/types/api";
 
 const navItems = [
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/finance", label: "Finance", icon: CircleDollarSign, section: "Business", permission: "VIEW_FINANCE" },
   { href: "/reports", label: "Reports", icon: PieChart, section: "Business", permission: "VIEW_REPORTS" },
   { href: "/navigation", label: "Navigation", icon: Navigation, section: "Website", permission: "VIEW_NAVIGATION" },
+  { href: "/alert-popup", label: "Alert Popup", icon: PictureInPicture2, section: "Website", permission: "VIEW_SETTINGS", role: "SUPER_ADMIN" },
   { href: "/settings", label: "Settings", icon: Settings, section: "Website", permission: "VIEW_SETTINGS" },
   { href: "/users", label: "Users & Roles", icon: UserRoundCog, section: "Admin", permission: "VIEW_USERS" }
 ] satisfies Array<{
@@ -45,6 +47,7 @@ const navItems = [
   icon: typeof Home;
   section: string;
   permission: PermissionKey;
+  role?: User["role"];
 }>;
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -64,9 +67,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     setUser(getStoredUser());
   }, [router]);
 
-  const visibleNavItems = navItems.filter((item) => hasPermission(user, item.permission));
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.role === "SUPER_ADMIN" && !isSuperAdmin(user)) return false;
+    return hasPermission(user, item.permission);
+  });
   const pagePermission = permissionForPath(pathname);
-  const canViewPage = pagePermission ? hasPermission(user, pagePermission) : true;
+  const pageRole = roleRequiredForPath(pathname);
+  const canViewPage = (!pageRole || user?.role === pageRole) && (pagePermission ? hasPermission(user, pagePermission) : true);
   const pageTitle = navItems.find((item) => item.href === pathname)?.label ?? "Dashboard";
 
   function logout() {

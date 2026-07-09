@@ -5,6 +5,7 @@ import path from "path";
 const maxImageFileSize = 5 * 1024 * 1024;
 const tourUploadDir = "uploads/tours/";
 const blogUploadDir = "uploads/blogs/";
+const alertPopupUploadDir = "uploads/alert-popups/";
 
 const ensureUploadDir = (uploadDir: string) => {
     if (!fs.existsSync(uploadDir)) {
@@ -14,6 +15,7 @@ const ensureUploadDir = (uploadDir: string) => {
 
 ensureUploadDir(tourUploadDir);
 ensureUploadDir(blogUploadDir);
+ensureUploadDir(alertPopupUploadDir);
 
 const createImageStorage = (uploadDir: string) =>
     multer.diskStorage({
@@ -77,6 +79,12 @@ export const uploadBlogCoverImage = multer({
     fileFilter,
     limits: { fileSize: maxImageFileSize },
 }).single("coverImage");
+
+export const uploadAlertPopupImage = multer({
+    storage: createImageStorage(alertPopupUploadDir),
+    fileFilter,
+    limits: { fileSize: maxImageFileSize },
+}).single("image");
 
 export const uploadTourGalleryImage = multer({
     storage: galleryStorage,

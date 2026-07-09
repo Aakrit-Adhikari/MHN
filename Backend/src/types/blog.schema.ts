@@ -5,6 +5,8 @@ const blogPostBaseSchema = z.object({
     slug: z.string().optional(),
     title: z.string().min(3, "Title must be at least 3 characters"),
     content: z.string().min(10, "Content must be at least 10 characters"),
+    metaTitle: z.string().max(120).nullable().optional(),
+    metaDescription: z.string().max(255).nullable().optional(),
     imageUrl: z.string().nullable().optional(),
 });
 

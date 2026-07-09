@@ -11,6 +11,7 @@ const protectedRoutes = [
   "/finance",
   "/reports",
   "/navigation",
+  "/alert-popup",
   "/settings",
   "/users"
 ];
@@ -78,5 +79,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard/:path*", "/bookings/:path*", "/tours/:path*", "/blogs/:path*", "/inquiries/:path*", "/customers/:path*", "/finance/:path*", "/reports/:path*", "/navigation/:path*", "/settings/:path*", "/users/:path*"]
+  matcher: ["/", "/login", "/dashboard/:path*", "/bookings/:path*", "/tours/:path*", "/blogs/:path*", "/inquiries/:path*", "/customers/:path*", "/finance/:path*", "/reports/:path*", "/navigation/:path*", "/alert-popup/:path*", "/settings/:path*", "/users/:path*"]
 };
