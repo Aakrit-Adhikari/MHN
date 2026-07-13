@@ -43,6 +43,9 @@ export const openApiDocument = {
         { name: "Inquiries", description: "Customer inquiry submission and admin management" },
         { name: "Blogs", description: "Public blog endpoints" },
         { name: "Admin Blogs", description: "Admin blog management" },
+        { name: "Newsletter", description: "Public newsletter subscription endpoints" },
+        { name: "Admin Newsletters", description: "Admin newsletter and subscriber management" },
+        { name: "Admin Calendar", description: "Admin booking calendar endpoints" },
     ],
     components: {
         securitySchemes: {
@@ -179,6 +182,74 @@ export const openApiDocument = {
                     metaDescription: { type: "string", nullable: true },
                     imageUrl: { type: "string", nullable: true },
                     coverImage: { type: "string", format: "binary" },
+                },
+            },
+            NewsletterSubscriber: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    email: { type: "string", format: "email" },
+                    name: { type: "string", nullable: true },
+                    isSubscribed: { type: "boolean" },
+                    unsubscribedAt: { type: "string", format: "date-time", nullable: true },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                },
+            },
+            Newsletter: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    title: { type: "string" },
+                    subject: { type: "string" },
+                    previewText: { type: "string", nullable: true },
+                    contentHtml: { type: "string" },
+                    contentText: { type: "string", nullable: true },
+                    audienceType: { type: "string", enum: ["ALL_SUBSCRIBERS", "PREMIUM_USERS", "CUSTOM"] },
+                    status: { type: "string", enum: ["DRAFT", "SENDING", "SENT", "FAILED"] },
+                    sentAt: { type: "string", format: "date-time", nullable: true },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                },
+            },
+            NewsletterInput: {
+                type: "object",
+                required: ["title", "subject", "contentHtml"],
+                properties: {
+                    title: { type: "string", minLength: 3 },
+                    subject: { type: "string", minLength: 3 },
+                    previewText: { type: "string", nullable: true },
+                    contentHtml: { type: "string", minLength: 10 },
+                    contentText: { type: "string", nullable: true },
+                    audienceType: { type: "string", enum: ["ALL_SUBSCRIBERS", "PREMIUM_USERS", "CUSTOM"] },
+                },
+            },
+            NewsletterSubscribeInput: {
+                type: "object",
+                required: ["email"],
+                properties: {
+                    email: { type: "string", format: "email" },
+                    name: { type: "string", nullable: true },
+                },
+            },
+            CalendarBooking: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    bookingDate: { type: "string", format: "date-time", nullable: true },
+                    tourId: { type: "string", nullable: true },
+                    tourSlug: { type: "string", nullable: true },
+                    tourTitle: { type: "string" },
+                    customerName: { type: "string" },
+                    customerPhone: { type: "string", nullable: true },
+                    customerEmail: { type: "string", nullable: true },
+                    passengerCount: { type: "integer", nullable: true },
+                    status: { type: "string", enum: ["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"] },
+                    amount: { type: "integer", nullable: true },
+                    currency: { type: "string" },
+                    sourceType: { type: "string", nullable: true },
+                    sourceName: { type: "string", nullable: true },
+                    notes: { type: "string", nullable: true },
                 },
             },
             Inquiry: {
@@ -612,6 +683,305 @@ export const openApiDocument = {
                     "404": {
                         description: "Blog post not found",
                         content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/newsletter/subscribe": {
+            post: {
+                tags: ["Newsletter"],
+                summary: "Subscribe an email address to newsletters",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/NewsletterSubscribeInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "Subscriber created or re-subscribed",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/NewsletterSubscriber" }) } },
+                    },
+                },
+            },
+        },
+        "/api/newsletter/unsubscribe": {
+            get: {
+                tags: ["Newsletter"],
+                summary: "Unsubscribe from newsletter emails",
+                parameters: [
+                    {
+                        name: "token",
+                        in: "query",
+                        required: true,
+                        schema: { type: "string" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "Subscriber unsubscribed",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/NewsletterSubscriber" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/newsletters": {
+            get: {
+                tags: ["Admin Newsletters"],
+                summary: "List newsletters",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "Newsletters returned",
+                        content: { "application/json": { schema: apiResponse({ type: "array", items: { $ref: "#/components/schemas/Newsletter" } }) } },
+                    },
+                },
+            },
+            post: {
+                tags: ["Admin Newsletters"],
+                summary: "Create a newsletter draft",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/NewsletterInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Newsletter draft created",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/Newsletter" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/newsletters/subscribers": {
+            get: {
+                tags: ["Admin Newsletters"],
+                summary: "List newsletter subscribers",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "Subscribers returned",
+                        content: { "application/json": { schema: apiResponse({ type: "array", items: { $ref: "#/components/schemas/NewsletterSubscriber" } }) } },
+                    },
+                },
+            },
+            post: {
+                tags: ["Admin Newsletters"],
+                summary: "Create or re-subscribe a newsletter subscriber",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/NewsletterSubscribeInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Subscriber saved",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/NewsletterSubscriber" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/newsletters/{id}": {
+            get: {
+                tags: ["Admin Newsletters"],
+                summary: "Get a newsletter by ID",
+                security: [{ bearerAuth: [] }],
+                parameters: [idParam("id", "Newsletter ID")],
+                responses: {
+                    "200": {
+                        description: "Newsletter returned",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/Newsletter" }) } },
+                    },
+                },
+            },
+            patch: {
+                tags: ["Admin Newsletters"],
+                summary: "Update a draft newsletter",
+                security: [{ bearerAuth: [] }],
+                parameters: [idParam("id", "Newsletter ID")],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/NewsletterInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "Newsletter updated",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/Newsletter" }) } },
+                    },
+                },
+            },
+            delete: {
+                tags: ["Admin Newsletters"],
+                summary: "Delete a draft newsletter",
+                security: [{ bearerAuth: [] }],
+                parameters: [idParam("id", "Newsletter ID")],
+                responses: {
+                    "200": {
+                        description: "Newsletter deleted",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/admin/newsletters/{id}/preview": {
+            post: {
+                tags: ["Admin Newsletters"],
+                summary: "Build a branded newsletter email preview",
+                security: [{ bearerAuth: [] }],
+                parameters: [idParam("id", "Newsletter ID")],
+                responses: {
+                    "200": {
+                        description: "Email HTML and text returned",
+                        content: { "application/json": { schema: apiResponse({ type: "object" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/newsletters/{id}/test-send": {
+            post: {
+                tags: ["Admin Newsletters"],
+                summary: "Prepare a test newsletter email",
+                security: [{ bearerAuth: [] }],
+                parameters: [idParam("id", "Newsletter ID")],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/NewsletterSubscribeInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "Test email prepared",
+                        content: { "application/json": { schema: apiResponse({ type: "object" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/newsletters/{id}/send": {
+            post: {
+                tags: ["Admin Newsletters"],
+                summary: "Send a draft newsletter to subscribed recipients",
+                security: [{ bearerAuth: [] }],
+                parameters: [idParam("id", "Newsletter ID")],
+                responses: {
+                    "200": {
+                        description: "Newsletter send completed",
+                        content: { "application/json": { schema: apiResponse({ type: "object" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/calendar/bookings": {
+            get: {
+                tags: ["Admin Calendar"],
+                summary: "List bookings for a calendar month or date range",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: "month",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", example: "2026-06" },
+                    },
+                    {
+                        name: "from",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", format: "date", example: "2026-06-01" },
+                    },
+                    {
+                        name: "to",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", format: "date", example: "2026-06-30" },
+                    },
+                    {
+                        name: "tourId",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string" },
+                    },
+                    {
+                        name: "status",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", enum: ["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"] },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "Calendar bookings returned",
+                        content: {
+                            "application/json": {
+                                schema: apiResponse({ type: "array", items: { $ref: "#/components/schemas/CalendarBooking" } }),
+                            },
+                        },
+                    },
+                    "400": {
+                        description: "Missing or invalid date range",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/admin/calendar/summary": {
+            get: {
+                tags: ["Admin Calendar"],
+                summary: "Get calendar booking totals for a month or date range",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: "month",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", example: "2026-06" },
+                    },
+                    {
+                        name: "from",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", format: "date" },
+                    },
+                    {
+                        name: "to",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string", format: "date" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "Calendar summary returned",
+                        content: { "application/json": { schema: apiResponse({ type: "object" }) } },
+                    },
+                },
+            },
+        },
+        "/api/admin/calendar/tours": {
+            get: {
+                tags: ["Admin Calendar"],
+                summary: "List tours for calendar filters",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "Tours returned",
+                        content: { "application/json": { schema: apiResponse({ type: "array", items: { $ref: "#/components/schemas/Tour" } }) } },
                     },
                 },
             },

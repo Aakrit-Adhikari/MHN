@@ -5,14 +5,17 @@ import {
   Bell,
   BookOpen,
   CalendarCheck,
+  CalendarDays,
   CircleDollarSign,
   Home,
   LogOut,
+  Mail,
   Menu,
   MessageSquare,
   Navigation,
   PieChart,
   PictureInPicture2,
+  Radio,
   Search,
   Settings,
   UserRoundCog,
@@ -31,10 +34,13 @@ import type { PermissionKey, User } from "@/types/api";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home, section: "Operations", permission: "VIEW_DASHBOARD" },
   { href: "/bookings", label: "Bookings", icon: CalendarCheck, section: "Operations", permission: "VIEW_BOOKINGS" },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays, section: "Operations", permission: "VIEW_BOOKINGS" },
   { href: "/inquiries", label: "Inquiries", icon: MessageSquare, section: "Operations", permission: "VIEW_INQUIRIES" },
   { href: "/customers", label: "Customers", icon: Users, section: "Operations", permission: "VIEW_CUSTOMERS" },
   { href: "/tours", label: "Tours", icon: BarChart3, section: "Catalog", permission: "VIEW_TOURS" },
   { href: "/blogs", label: "Blogs", icon: BookOpen, section: "Catalog", permission: "VIEW_BLOGS" },
+  { href: "/newsletters", label: "Newsletters", icon: Mail, section: "Catalog", permission: "VIEW_NEWSLETTERS" },
+  { href: "/sources", label: "Sources", icon: Radio, section: "Business", permission: "VIEW_DASHBOARD" },
   { href: "/finance", label: "Finance", icon: CircleDollarSign, section: "Business", permission: "VIEW_FINANCE" },
   { href: "/reports", label: "Reports", icon: PieChart, section: "Business", permission: "VIEW_REPORTS" },
   { href: "/navigation", label: "Navigation", icon: Navigation, section: "Website", permission: "VIEW_NAVIGATION" },
@@ -54,10 +60,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [userName, setUserName] = useState(() => getStoredUserName());
-  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [mounted, setMounted] = useState(false);
+  const [userName, setUserName] = useState("Administrator");
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    setMounted(true);
+
     if (!getStoredToken()) {
       router.replace("/login");
       return;
@@ -73,7 +82,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   });
   const pagePermission = permissionForPath(pathname);
   const pageRole = roleRequiredForPath(pathname);
-  const canViewPage = (!pageRole || user?.role === pageRole) && (pagePermission ? hasPermission(user, pagePermission) : true);
+  const canViewPage = mounted && (!pageRole || user?.role === pageRole) && (pagePermission ? hasPermission(user, pagePermission) : true);
   const pageTitle = navItems.find((item) => item.href === pathname)?.label ?? "Dashboard";
 
   function logout() {

@@ -17,6 +17,16 @@ const envSchema = z.object({
     ADMIN_EMAIL: z.string().email(),
     ADMIN_USERNAME: z.string().min(3).optional(),
     ADMIN_PASSWORD: z.string().min(6),
+
+    PUBLIC_APP_URL: z.string().url().default("http://localhost:5000"),
+    NEWSLETTER_FROM_EMAIL: z.string().email().optional(),
+    NEWSLETTER_FROM_NAME: z.string().default("Mountain Helicopters Nepal"),
+    NEWSLETTER_EMAIL_PROVIDER: z.string().default("mock"),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().default(465),
+    SMTP_SECURE: z.coerce.boolean().default(true),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse(process.env);

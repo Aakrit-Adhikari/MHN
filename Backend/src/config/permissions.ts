@@ -10,6 +10,7 @@ export const permissions = [
     { key: 'VIEW_NAVIGATION', name: 'Navigation' },
     { key: 'VIEW_SETTINGS', name: 'Settings' },
     { key: 'VIEW_USERS', name: 'Users' },
+    { key: 'VIEW_NEWSLETTERS', name: 'Newsletters' },
 ] as const;
 
 export type PermissionKey = (typeof permissions)[number]['key'];
@@ -26,6 +27,7 @@ export const allPermissionKeys = [
     'VIEW_NAVIGATION',
     'VIEW_SETTINGS',
     'VIEW_USERS',
+    'VIEW_NEWSLETTERS',
 ] as const;
 
 export const rolePermissionDefaults: Record<string, PermissionKey[]> = {

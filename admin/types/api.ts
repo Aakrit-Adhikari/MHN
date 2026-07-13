@@ -30,7 +30,8 @@ export type PermissionKey =
   | "VIEW_REPORTS"
   | "VIEW_NAVIGATION"
   | "VIEW_SETTINGS"
-  | "VIEW_USERS";
+  | "VIEW_USERS"
+  | "VIEW_NEWSLETTERS";
 
 export type Permission = {
   id?: string;
@@ -76,6 +77,36 @@ export type BlogPost = {
   metaDescription?: string | null;
   coverImageUrl?: string | null;
   imageUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NewsletterAudienceType = "ALL_SUBSCRIBERS" | "PREMIUM_USERS" | "CUSTOM";
+export type NewsletterStatus = "DRAFT" | "SENDING" | "SENT" | "FAILED";
+
+export type Newsletter = {
+  id: string;
+  title: string;
+  subject: string;
+  previewText: string | null;
+  contentHtml: string;
+  contentText: string | null;
+  audienceType: NewsletterAudienceType;
+  status: NewsletterStatus;
+  sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    recipients: number;
+  };
+};
+
+export type NewsletterSubscriber = {
+  id: string;
+  email: string;
+  name: string | null;
+  isSubscribed: boolean;
+  unsubscribedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -131,6 +162,7 @@ export type Inquiry = {
 };
 
 export type BookingStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+export type PaymentStatus = "PENDING" | "UNPAID" | "PAID_IN_FULL";
 
 export type Booking = {
   id: string;
@@ -140,9 +172,11 @@ export type Booking = {
   customerEmail: string | null;
   customerPhone: string | null;
   bookingDate: string | null;
+  passengerCount: number | null;
   amount: number | null;
   currency: string;
   status: BookingStatus;
+  paymentStatus: PaymentStatus;
   notes: string | null;
   sourceType: SourceType | null;
   sourceName: string | null;
@@ -160,6 +194,40 @@ export type Booking = {
   updatedAt: string;
   tour?: Tour | null;
   inquiry?: Inquiry | null;
+};
+
+export type CalendarBooking = {
+  id: string;
+  bookingDate: string | null;
+  tourId: string | null;
+  tourSlug: string | null;
+  tourTitle: string;
+  customerName: string;
+  customerPhone: string | null;
+  customerEmail: string | null;
+  passengerCount: number | null;
+  status: BookingStatus;
+  amount: number | null;
+  currency: string;
+  sourceType: SourceType | null;
+  sourceName: string | null;
+  notes: string | null;
+};
+
+export type CalendarSummary = {
+  totalBookings: number;
+  confirmed: number;
+  pending: number;
+  cancelled: number;
+  completed: number;
+  totalPassengers: number;
+  totalAmount: number;
+};
+
+export type CalendarTourOption = {
+  id: string;
+  slug: string;
+  title: string;
 };
 
 export type SourceSummaryRow = {

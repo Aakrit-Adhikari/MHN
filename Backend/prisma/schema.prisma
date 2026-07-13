@@ -17,6 +17,7 @@ model User {
   status          UserStatus       @default(ACTIVE)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
+  newsletters     Newsletter[]
   userPermissions UserPermission[]
 
   @@map("users")
@@ -148,9 +149,11 @@ model Booking {
   customerEmail String?       @map("customer_email")
   customerPhone String?       @map("customer_phone")
   bookingDate   DateTime?     @map("booking_date")
+  passengerCount Int?         @map("passenger_count")
   amount        Int?
   currency      String        @default("USD")
   status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
   notes         String?
   sourceType    SourceType?   @map("source_type")
   sourceName    String?       @map("source_name")
@@ -200,6 +203,58 @@ model AlertPopup {
   @@map("alert_popups")
 }
 
+model NewsletterSubscriber {
+  id               String                @id @default(cuid())
+  email            String                @unique
+  name             String?
+  isSubscribed     Boolean               @default(true) @map("is_subscribed")
+  unsubscribeToken String                @unique @map("unsubscribe_token")
+  unsubscribedAt   DateTime?             @map("unsubscribed_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  recipients       NewsletterRecipient[]
+
+  @@map("newsletter_subscribers")
+}
+
+model Newsletter {
+  id           String                   @id @default(cuid())
+  title        String
+  subject      String
+  previewText  String?                  @map("preview_text")
+  contentHtml  String                   @map("content_html")
+  contentText  String?                  @map("content_text")
+  audienceType NewsletterAudienceType   @default(ALL_SUBSCRIBERS) @map("audience_type")
+  status       NewsletterStatus         @default(DRAFT)
+  createdById  String?                  @map("created_by_id")
+  sentAt       DateTime?                @map("sent_at")
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  updatedAt    DateTime                 @updatedAt @map("updated_at")
+  createdBy    User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  recipients   NewsletterRecipient[]
+
+  @@map("newsletters")
+}
+
+model NewsletterRecipient {
+  id             String               @id @default(cuid())
+  newsletterId   String               @map("newsletter_id")
+  subscriberId   String?              @map("subscriber_id")
+  email          String
+  name           String?
+  status         NewsletterSendStatus @default(PENDING)
+  provider       String?
+  error          String?
+  sentAt         DateTime?            @map("sent_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  newsletter     Newsletter           @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  subscriber     NewsletterSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+
+  @@unique([newsletterId, email])
+  @@map("newsletter_recipients")
+}
+
 enum UserRole {
   SUPER_ADMIN
   ADMIN
@@ -236,6 +291,12 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  UNPAID
+  PAID_IN_FULL
+}
+
 enum SourceType {
   WEBSITE
   ADS
@@ -247,4 +308,24 @@ enum SourceType {
   WALK_IN
   MANUAL
   OTHER
+}
+
+enum NewsletterAudienceType {
+  ALL_SUBSCRIBERS
+  PREMIUM_USERS
+  CUSTOM
+}
+
+enum NewsletterStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+enum NewsletterSendStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
 }

@@ -4,10 +4,13 @@ import type { NextRequest } from "next/server";
 const protectedRoutes = [
   "/dashboard",
   "/bookings",
+  "/calendar",
   "/tours",
   "/blogs",
+  "/newsletters",
   "/inquiries",
   "/customers",
+  "/sources",
   "/finance",
   "/reports",
   "/navigation",
@@ -79,5 +82,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard/:path*", "/bookings/:path*", "/tours/:path*", "/blogs/:path*", "/inquiries/:path*", "/customers/:path*", "/finance/:path*", "/reports/:path*", "/navigation/:path*", "/alert-popup/:path*", "/settings/:path*", "/users/:path*"]
+  matcher: ["/", "/login", "/dashboard/:path*", "/bookings/:path*", "/calendar/:path*", "/tours/:path*", "/blogs/:path*", "/newsletters/:path*", "/inquiries/:path*", "/customers/:path*", "/sources/:path*", "/finance/:path*", "/reports/:path*", "/navigation/:path*", "/alert-popup/:path*", "/settings/:path*", "/users/:path*"]
 };

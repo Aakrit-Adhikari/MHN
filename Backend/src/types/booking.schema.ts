@@ -20,6 +20,7 @@ const optionalInt = z.preprocess(
 );
 
 export const BookingStatusSchema = z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']);
+export const PaymentStatusSchema = z.enum(['PENDING', 'UNPAID', 'PAID_IN_FULL']);
 
 export const CreateBookingSchema = z.object({
     inquiryId: z.string().nullable().optional(),
@@ -28,9 +29,11 @@ export const CreateBookingSchema = z.object({
     customerEmail: z.string().email('Invalid email address').nullable().optional(),
     customerPhone: optionalText,
     bookingDate: z.coerce.date().nullable().optional(),
+    passengerCount: optionalInt,
     amount: optionalInt,
     currency: z.string().min(3).max(3).optional(),
     status: BookingStatusSchema.optional(),
+    paymentStatus: PaymentStatusSchema.optional(),
     notes: optionalText,
     sourceType: SourceTypeSchema.nullable().optional(),
     sourceName: optionalText,
