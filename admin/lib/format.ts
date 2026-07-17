@@ -16,7 +16,7 @@ export function formatDateTime(value: string) {
 }
 
 export function money(value: number | null | undefined) {
-  if (!value) return "Quote";
+  if (value === null || value === undefined) return "Quote";
   return new Intl.NumberFormat("en", {
     style: "currency",
     currency: "USD",

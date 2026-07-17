@@ -4,6 +4,7 @@ import { Router } from "express";
 import { prisma } from "../../config/database.js";
 import { authenticate, requirePermission } from "../../middleware/auth.middleware.js";
 import { CreateBookingSchema, UpdateBookingSchema } from "../../types/booking.schema.js";
+import { recalculateCustomerAccount } from "../../utils/customer-category.js";
 
 const router = Router();
 
@@ -93,6 +94,18 @@ const sourceData = (data: {
 const bookingInclude = {
     tour: true,
     inquiry: true,
+    customerAccount: true,
+};
+
+const findCustomerAccountId = async (email: string | null | undefined) => {
+    if (!email) return null;
+
+    const customer = await prisma.customerAccount.findUnique({
+        where: { email: email.trim().toLowerCase() },
+        select: { id: true },
+    });
+
+    return customer?.id ?? null;
 };
 
 router.get("/", authenticate, requirePermission("VIEW_BOOKINGS"), async (_req, res, next) => {
@@ -159,6 +172,7 @@ router.post("/", authenticate, requirePermission("VIEW_BOOKINGS"), async (req, r
         const bookingData = {
             inquiryId: validatedData.inquiryId,
             tourId: validatedData.tourId,
+            customerAccountId: await findCustomerAccountId(validatedData.customerEmail),
             customerName: validatedData.customerName,
             customerEmail: validatedData.customerEmail,
             customerPhone: validatedData.customerPhone,
@@ -177,6 +191,10 @@ router.post("/", authenticate, requirePermission("VIEW_BOOKINGS"), async (req, r
             include: bookingInclude,
         });
 
+        if (booking.customerAccountId) {
+            await recalculateCustomerAccount(prisma, booking.customerAccountId);
+        }
+
         res.status(201).json({ success: true, data: booking });
     } catch (error) {
         next(error);
@@ -188,6 +206,12 @@ router.patch("/:id", authenticate, requirePermission("VIEW_BOOKINGS"), async (re
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         normalizeBookingBody(req.body);
         const validatedData = UpdateBookingSchema.parse(req.body);
+        const existingBooking = await prisma.booking.findUnique({ where: { id } });
+
+        if (!existingBooking) {
+            res.status(404).json({ success: false, message: "Booking not found" });
+            return;
+        }
 
         if (validatedData.tourId) {
             const tour = await prisma.tour.findUnique({ where: { id: validatedData.tourId } });
@@ -201,11 +225,27 @@ router.patch("/:id", authenticate, requirePermission("VIEW_BOOKINGS"), async (re
             }
         }
 
+        const nextCustomerAccountId = Object.prototype.hasOwnProperty.call(validatedData, "customerEmail")
+            ? await findCustomerAccountId(validatedData.customerEmail)
+            : existingBooking.customerAccountId;
+
         const booking = await prisma.booking.update({
             where: { id },
-            data: validatedData,
+            data: {
+                ...validatedData,
+                customerAccountId: nextCustomerAccountId,
+            },
             include: bookingInclude,
         });
+
+        const affectedCustomerIds = [
+            existingBooking.customerAccountId,
+            booking.customerAccountId,
+        ].filter((customerId): customerId is string => Boolean(customerId));
+
+        await Promise.all(
+            [...new Set(affectedCustomerIds)].map((customerId) => recalculateCustomerAccount(prisma, customerId))
+        );
 
         res.status(200).json({ success: true, data: booking });
     } catch (error) {
@@ -224,6 +264,10 @@ router.delete("/:id", authenticate, requirePermission("VIEW_BOOKINGS"), async (r
         }
 
         await prisma.booking.delete({ where: { id } });
+
+        if (booking.customerAccountId) {
+            await recalculateCustomerAccount(prisma, booking.customerAccountId);
+        }
 
         res.status(200).json({ success: true, message: "Booking deleted successfully" });
     } catch (error) {

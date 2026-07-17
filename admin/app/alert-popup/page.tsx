@@ -125,15 +125,14 @@ export default function AlertPopupPage() {
     <>
       <PageHeader
         title="Alert Popup"
-        description="Manage the website popup image shown to visitors."
         actions={<button className="btn btn-gold" onClick={openNew}><ImagePlus className="h-4 w-4" /> New Popup</button>}
       />
 
       {loading ? <LoadingState /> : null}
-      {error ? <ErrorState title="Alert popups could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Alert popups could not be loaded" /> : null}
       {actionError ? <div className="mb-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
       {!loading && !error && !data?.length ? (
-        <EmptyState title="No alert popups found" message="Create a popup image to show it on the website." />
+        <EmptyState title="No alert popups found" />
       ) : null}
 
       {data?.length ? (
@@ -202,7 +201,6 @@ export default function AlertPopupPage() {
             <div className="modal-header">
               <div>
                 <h2>{editing ? "Edit Alert Popup" : "New Alert Popup"}</h2>
-                <p>{editing ? "Update this popup image and settings." : "Upload a popup image for website visitors."}</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">
                 <X className="h-5 w-5" />

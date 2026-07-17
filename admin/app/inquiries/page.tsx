@@ -307,17 +307,11 @@ export default function InquiriesPage() {
     <>
       <PageHeader
         title="Inquiries"
-        description="Review customer inquiries and add manual requests from phone or walk-in leads."
         actions={<button className="btn btn-gold" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Manual Inquiry</button>}
       />
 
       {loading ? <LoadingState /> : null}
-      {error ? (
-        <ErrorState
-          title="Inquiries could not be loaded"
-          message={`${error.message}. Make sure you are logged in with an ADMIN backend user.`}
-        />
-      ) : null}
+      {error ? <ErrorState title="Inquiries could not be loaded" /> : null}
       {actionError ? <div className="mb-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
 
       {!loading && !error && data?.length ? (
@@ -340,7 +334,7 @@ export default function InquiriesPage() {
       ) : null}
 
       {!loading && !error && !data?.length ? (
-        <EmptyState title="No inquiries found" message="New customer inquiries will appear here." />
+        <EmptyState title="No inquiries found" />
       ) : null}
       {!loading && !error && data?.length && !filteredInquiries.length ? (
         <EmptyState title="No matching inquiries" message="Try another source filter." />
@@ -383,7 +377,6 @@ export default function InquiriesPage() {
             <div className="modal-header">
               <div>
                 <h2>Manual Inquiry</h2>
-                <p>Add a customer request received outside the website form.</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">
                 <X className="h-5 w-5" />

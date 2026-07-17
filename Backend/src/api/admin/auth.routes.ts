@@ -3,8 +3,12 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../../config/database.js";
 import { env } from "../../config/env.js";
-import { authenticate, type AuthenticatedRequest } from "../../middleware/auth.middleware.js";
-import { loginSchema } from "../../types/auth.schema.js";
+import {
+    authenticate,
+    requireSuperAdmin,
+    type AuthenticatedRequest,
+} from "../../middleware/auth.middleware.js";
+import { impersonateAdminSchema, loginSchema } from "../../types/auth.schema.js";
 
 const router = Router();
 
@@ -91,6 +95,66 @@ router.get("/me", authenticate, async (req: AuthenticatedRequest, res) => {
         },
     });
 });
+
+router.post(
+    "/impersonate",
+    authenticate,
+    requireSuperAdmin,
+    async (req: AuthenticatedRequest, res, next) => {
+        try {
+            const { userId } = impersonateAdminSchema.parse(req.body);
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                include: userInclude,
+            });
+
+            if (!user) {
+                res.status(404).json({ success: false, message: "Account not found." });
+                return;
+            }
+
+            if (user.status !== "ACTIVE") {
+                res.status(400).json({ success: false, message: "Disabled accounts cannot be selected." });
+                return;
+            }
+
+            if (user.role === "CUSTOMER") {
+                res.status(400).json({ success: false, message: "Customer accounts cannot access the admin dashboard." });
+                return;
+            }
+
+            if (user.id === req.user?.id) {
+                res.status(400).json({ success: false, message: "This account is already active." });
+                return;
+            }
+
+            const token = jwt.sign(
+                {
+                    role: user.role,
+                    impersonatedBy: req.user?.id,
+                },
+                env.jwtSecret,
+                {
+                    subject: user.id,
+                    expiresIn: env.jwtExpiresIn,
+                }
+            );
+            const safeUser = serializeUser(user);
+
+            res.status(200).json({
+                success: true,
+                data: {
+                    token,
+                    user: safeUser,
+                    role: safeUser.role,
+                    permissions: safeUser.permissions,
+                },
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
 
 router.post("/logout", authenticate, async (_req, res) => {
     res.status(200).json({

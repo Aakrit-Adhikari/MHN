@@ -1,6 +1,18 @@
 "use client";
 
-import { BookOpen, MessageSquare, Plane, Plus, Radio, TrendingUp, Users } from "lucide-react";
+import {
+  BookOpen,
+  CalendarCheck,
+  CircleDollarSign,
+  MessageSquare,
+  PieChart,
+  Plane,
+  Plus,
+  Radio,
+  TrendingUp,
+  UserRoundCog,
+  Users
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -11,7 +23,18 @@ import { formatDateTime, money } from "@/lib/format";
 import { hasPermission } from "@/lib/permissions";
 import { getSourceBadgeClass } from "@/lib/source";
 import { useApiData } from "@/lib/useApiData";
-import type { BlogPost, Booking, DashboardSourceSummary, Inquiry, SourceSummaryRow, Tour, User } from "@/types/api";
+import type { DashboardOverview, DashboardRecentInquiry, SourceSummaryRow, User } from "@/types/api";
+
+const inquiryTypeDisplay = {
+  BOOKING: { label: "Booking", className: "badge-green" },
+  CHARTER: { label: "Charter", className: "badge-gold" },
+  CONTACT: { label: "Contact", className: "badge-blue" }
+} as const;
+
+function getInquiryTypeDisplay(item: DashboardRecentInquiry) {
+  const type = item.inquiryType ?? "CONTACT";
+  return inquiryTypeDisplay[type];
+}
 
 function SourceList({
   rows,
@@ -47,67 +70,78 @@ export default function DashboardPage() {
 
   const canViewBookings = hasPermission(user, "VIEW_BOOKINGS");
   const canViewInquiries = hasPermission(user, "VIEW_INQUIRIES");
+  const canViewTours = hasPermission(user, "VIEW_TOURS");
+  const canViewBlogs = hasPermission(user, "VIEW_BLOGS");
+  const canViewCustomers = hasPermission(user, "VIEW_CUSTOMERS");
+  const canViewUsers = hasPermission(user, "VIEW_USERS");
+  const canViewFinance = hasPermission(user, "VIEW_FINANCE");
+  const canViewReports = hasPermission(user, "VIEW_REPORTS");
+  const hasQuickActions = canViewBookings || canViewTours || canViewBlogs || canViewInquiries ||
+    canViewCustomers || canViewUsers || canViewFinance || canViewReports;
+  const visibleStatCount = [
+    canViewTours,
+    canViewBlogs,
+    canViewInquiries,
+    canViewBookings,
+    canViewCustomers,
+    canViewUsers
+  ].filter(Boolean).length;
+  const statGridSize = Math.min(Math.max(visibleStatCount, 1), 4);
 
-  const tours = useApiData<Tour[]>("/tours");
-  const blogs = useApiData<BlogPost[]>("/blogs");
-  const bookings = useApiData<Booking[]>("/admin/bookings", true, canViewBookings);
-  const inquiries = useApiData<Inquiry[]>("/inquiries", true, canViewInquiries);
-  const sourceSummary = useApiData<DashboardSourceSummary>("/admin/dashboard/sources", true);
-  const loading = tours.loading || blogs.loading || bookings.loading || inquiries.loading || sourceSummary.loading;
-
-  const errors = [tours.error, blogs.error, bookings.error, inquiries.error, sourceSummary.error].filter(Boolean);
-  const recentInquiries = inquiries.data?.slice(0, 5) ?? [];
+  const overview = useApiData<DashboardOverview>("/admin/dashboard/overview", true, Boolean(user));
+  const recentInquiries = overview.data?.recentInquiries ?? [];
+  const sourceSummary = overview.data?.sourceSummary;
 
   return (
     <>
       <PageHeader
-        title="Good day, Administrator"
-        description="Today’s overview for tours, content, and customer requests."
-        actions={<Link className="btn btn-primary" href="/inquiries">View Inquiries</Link>}
+        title="Dashboard"
+        actions={canViewInquiries ? <Link className="btn btn-primary" href="/inquiries">View Inquiries</Link> : undefined}
       />
 
-      {errors.map((error, index) => (
-        <div className="mb-4" key={index}>
-          <ErrorState title="Some records could not be loaded" message={error?.message ?? "Unknown error."} />
-        </div>
-      ))}
+      {overview.error ? <div className="mb-4"><ErrorState title="Dashboard data could not be loaded" /></div> : null}
 
-      {loading ? (
+      {overview.loading ? (
         <LoadingState />
       ) : (
         <>
-          <div className="stats-grid">
-            <StatCard icon={Plane} label="Tours" value={tours.data?.length ?? 0} meta="Active tour packages" tone="gold" />
-            <StatCard icon={BookOpen} label="Blogs" value={blogs.data?.length ?? 0} meta="Published content items" />
-            <StatCard
+          <div className={`stats-grid stats-grid-${statGridSize}`}>
+            {canViewTours ? <StatCard icon={Plane} label="Tours" value={overview.data?.counts.tours ?? 0} tone="gold" /> : null}
+            {canViewBlogs ? <StatCard icon={BookOpen} label="Blogs" value={overview.data?.counts.blogs ?? 0} /> : null}
+            {canViewInquiries ? <StatCard
               icon={MessageSquare}
               label="Inquiries"
-              value={canViewInquiries ? inquiries.data?.length ?? 0 : "Hidden"}
-              meta={canViewInquiries ? "Customer requests received" : "No inquiry permission"}
+              value={overview.data?.counts.inquiries ?? 0}
               tone="blue"
-            />
-            <StatCard
-              icon={Users}
+            /> : null}
+            {canViewBookings ? <StatCard
+              icon={CalendarCheck}
               label="Bookings"
-              value={canViewBookings ? bookings.data?.length ?? 0 : "Hidden"}
-              meta={canViewBookings ? "Tracked booking records" : "No booking permission"}
+              value={overview.data?.counts.bookings ?? 0}
               tone="green"
-            />
+            /> : null}
+            {canViewCustomers ? <StatCard
+              icon={Users}
+              label="Customers"
+              value={overview.data?.counts.customers ?? 0}
+              tone="green"
+            /> : null}
+            {canViewUsers ? <StatCard
+              icon={UserRoundCog}
+              label="Users"
+              value={overview.data?.counts.users ?? 0}
+              tone="blue"
+            /> : null}
           </div>
 
           <div className="dash-grid">
-            <div className="card">
+            {canViewInquiries ? <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Recent Inquiries</div>
-                  <div className="card-subtitle">Newest customer requests</div>
                 </div>
               </div>
-              {!canViewInquiries ? (
-                <div className="card-body">
-                  <EmptyState title="Inquiries hidden" message="This user does not have inquiry permission." />
-                </div>
-              ) : recentInquiries.length ? (
+              {recentInquiries.length ? (
                 <div className="table-wrap">
                   <table>
                     <thead>
@@ -119,92 +153,106 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {recentInquiries.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <div className="t-name">{item.name}</div>
-                            <div className="t-meta">{item.id}</div>
-                          </td>
-                          <td><span className="badge badge-blue">{item.type}</span></td>
-                          <td>
-                            {item.email}
-                            <div className="t-meta">{item.phone || "No phone"}</div>
-                          </td>
-                          <td>{formatDateTime(item.createdAt)}</td>
-                        </tr>
-                      ))}
+                      {recentInquiries.map((item) => {
+                        const type = getInquiryTypeDisplay(item);
+
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              <div className="t-name">{item.name}</div>
+                            </td>
+                            <td><span className={`badge ${type.className}`}>{type.label}</span></td>
+                            <td>
+                              {item.email}
+                              <div className="t-meta">{item.phone || "No phone"}</div>
+                            </td>
+                            <td>{formatDateTime(item.createdAt)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               ) : (
                 <div className="card-body">
-                  <EmptyState title="No inquiries found" message="New customer requests will appear here." />
+                  <EmptyState title="No inquiries found" />
                 </div>
               )}
-            </div>
+            </div> : null}
 
-            <div className="card">
+            {hasQuickActions ? <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Quick Actions</div>
-                  <div className="card-subtitle">Common admin tasks</div>
                 </div>
               </div>
               <div className="card-body space-y-3 text-sm text-slate-700">
-                <Link className="btn btn-gold w-full justify-start" href="/tours">
+                {canViewBookings ? <Link className="btn btn-gold w-full justify-start" href="/bookings">
+                  <CalendarCheck className="h-4 w-4" /> Manage Bookings
+                </Link> : null}
+                {canViewTours ? <Link className="btn btn-secondary w-full justify-start" href="/tours">
                   <Plus className="h-4 w-4" /> Manage Tours
-                </Link>
-                <Link className="btn btn-secondary w-full justify-start" href="/blogs">
+                </Link> : null}
+                {canViewBlogs ? <Link className="btn btn-secondary w-full justify-start" href="/blogs">
                   <BookOpen className="h-4 w-4" /> Manage Blogs
-                </Link>
+                </Link> : null}
                 {canViewInquiries ? <Link className="btn btn-secondary w-full justify-start" href="/inquiries">
                   <MessageSquare className="h-4 w-4" /> Review Inquiries
                 </Link> : null}
+                {canViewCustomers ? <Link className="btn btn-secondary w-full justify-start" href="/customers">
+                  <Users className="h-4 w-4" /> View Customers
+                </Link> : null}
+                {canViewUsers ? <Link className="btn btn-secondary w-full justify-start" href="/users">
+                  <UserRoundCog className="h-4 w-4" /> Manage Users
+                </Link> : null}
+                {canViewFinance ? <Link className="btn btn-secondary w-full justify-start" href="/finance">
+                  <CircleDollarSign className="h-4 w-4" /> View Finance
+                </Link> : null}
+                {canViewReports ? <Link className="btn btn-secondary w-full justify-start" href="/reports">
+                  <PieChart className="h-4 w-4" /> View Reports
+                </Link> : null}
               </div>
-            </div>
+            </div> : null}
           </div>
 
-          <div className="dash-grid mt-4">
-            <div className="card">
+          {canViewBookings || canViewInquiries ? <div className="dash-grid mt-4">
+            {canViewBookings ? <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Bookings by Source</div>
-                  <div className="card-subtitle">Booking inquiries grouped by attribution</div>
                 </div>
                 <Radio className="h-4 w-4 text-[#003366]" />
               </div>
               <div className="card-body">
-                <SourceList rows={sourceSummary.data?.bookingsBySource ?? []} emptyMessage="No booking source data yet." />
+                <SourceList rows={sourceSummary?.bookingsBySource ?? []} emptyMessage="No data" />
               </div>
-            </div>
+            </div> : null}
 
-            <div className="card">
+            {canViewInquiries ? <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Inquiries by Source</div>
-                  <div className="card-subtitle">All inquiries grouped by source</div>
                 </div>
                 <MessageSquare className="h-4 w-4 text-[#0062b1]" />
               </div>
               <div className="card-body">
-                <SourceList rows={sourceSummary.data?.inquiriesBySource ?? []} emptyMessage="No inquiry source data yet." />
+                <SourceList rows={sourceSummary?.inquiriesBySource ?? []} emptyMessage="No data" />
               </div>
-            </div>
-          </div>
+            </div> : null}
+          </div> : null}
 
-          <div className="dash-grid mt-4">
-            <div className="card">
+          {canViewReports || canViewFinance ? <div className="dash-grid mt-4">
+            {canViewReports ? <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Top Campaigns</div>
-                  <div className="card-subtitle">Based on campaign name and UTM campaign</div>
                 </div>
                 <TrendingUp className="h-4 w-4 text-[#b8860b]" />
               </div>
               <div className="card-body">
-                {sourceSummary.data?.topCampaigns.length ? (
+                {sourceSummary?.topCampaigns.length ? (
                   <div className="space-y-2">
-                    {sourceSummary.data.topCampaigns.map((campaign) => (
+                    {sourceSummary.topCampaigns.map((campaign) => (
                       <div className="flex items-center justify-between gap-3" key={campaign.name}>
                         <span className="t-name">{campaign.name}</span>
                         <strong className="text-slate-700">{campaign.count}</strong>
@@ -212,27 +260,26 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="t-meta">No campaign data yet.</div>
+                  <div className="t-meta">No data</div>
                 )}
               </div>
-            </div>
+            </div> : null}
 
-            <div className="card">
+            {canViewFinance ? <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Revenue by Source</div>
-                  <div className="card-subtitle">Available once booking amount is stored</div>
                 </div>
               </div>
               <div className="card-body">
                 <SourceList
-                  rows={sourceSummary.data?.revenueBySource ?? []}
-                  emptyMessage="No booking revenue data yet."
+                  rows={sourceSummary?.revenueBySource ?? []}
+                  emptyMessage="No data"
                   formatValue={(value) => money(value)}
                 />
               </div>
-            </div>
-          </div>
+            </div> : null}
+          </div> : null}
         </>
       )}
     </>

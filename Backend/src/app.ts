@@ -9,8 +9,10 @@ import adminAuthRoutes from "./api/admin/auth.routes.js";
 import adminDashboardRoutes from "./api/admin/dashboard.routes.js";
 import adminBookingRoutes from "./api/admin/bookings.routes.js";
 import adminCalendarRoutes from "./api/admin/calendar.routes.js";
+import adminCustomerRoutes from "./api/admin/customers.routes.js";
 import adminPermissionRoutes from "./api/admin/permissions.routes.js";
 import adminUserRoutes from "./api/admin/users.routes.js";
+import customerBookingRoutes from "./api/customer/bookings.routes.js";
 import {
     adminAlertPopupRouter,
     publicAlertPopupRouter,
@@ -38,6 +40,7 @@ app.use(
 );
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use("/uploads", express.static(path.join(backendRoot, "uploads")));
 app.use(swaggerRoutes);
 
@@ -49,10 +52,12 @@ app.use("/api/navigation", navigationRoutes);
 app.use("/api/blogs", publicBlogRouter);
 app.use("/api/alert-popup", publicAlertPopupRouter);
 app.use("/api/newsletter", publicNewsletterRouter);
+app.use("/api/customer/bookings", customerBookingRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin/alert-popups", adminAlertPopupRouter);
 app.use("/api/admin/bookings", adminBookingRoutes);
 app.use("/api/admin/calendar", adminCalendarRoutes);
+app.use("/api/admin/customers", adminCustomerRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/permissions", adminPermissionRoutes);
 app.use("/api/admin/users", adminUserRoutes);

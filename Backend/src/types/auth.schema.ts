@@ -6,6 +6,10 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Password is required"),
 });
 
+export const impersonateAdminSchema = z.object({
+    userId: z.string().min(1, "User is required"),
+});
+
 export const UserRoleSchema = z.enum(['SUPER_ADMIN', 'ADMIN', 'FINANCE', 'HR', 'OPERATIONS', 'EMPLOYEE', 'CUSTOMER']);
 export const UserStatusSchema = z.enum(['ACTIVE', 'DISABLED']);
 export const PermissionKeySchema = z.enum(allPermissionKeys);

@@ -196,15 +196,14 @@ export default function ToursPage() {
     <>
       <PageHeader
         title="Tours"
-        description="Create, update, publish, and remove helicopter tour packages."
         actions={<button className="btn btn-gold" onClick={openNew}><Plus className="h-4 w-4" /> New Tour</button>}
       />
 
       {loading ? <LoadingState /> : null}
-      {error ? <ErrorState title="Tours could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Tours could not be loaded" /> : null}
       {actionError ? <div className="mb-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
       {!loading && !error && !data?.length ? (
-        <EmptyState title="No tours found" message="Create the first tour package to show it here." />
+        <EmptyState title="No tours found" />
       ) : null}
 
       {data?.length ? (
@@ -276,7 +275,6 @@ export default function ToursPage() {
             <div className="modal-header">
               <div>
                 <h2>{editing ? "Edit Tour" : "New Tour"}</h2>
-                <p>{editing ? "Update the selected tour package." : "Add a new tour package."}</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">
                 <X className="h-5 w-5" />

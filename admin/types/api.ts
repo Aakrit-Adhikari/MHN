@@ -163,6 +163,7 @@ export type Inquiry = {
 
 export type BookingStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
 export type PaymentStatus = "PENDING" | "UNPAID" | "PAID_IN_FULL";
+export type CustomerCategory = "NO_BOOKING" | "NEW" | "REPEATED" | "VIP";
 
 export type Booking = {
   id: string;
@@ -194,6 +195,33 @@ export type Booking = {
   updatedAt: string;
   tour?: Tour | null;
   inquiry?: Inquiry | null;
+};
+
+export type CustomerRecord = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  avatarUrl: string | null;
+  category: CustomerCategory;
+  bookingCount: number;
+  totalSpent: number;
+  latestBookingAt: string | null;
+  latestTourTitle: string | null;
+  joinedAt: string | null;
+  authProviders: string[];
+  statuses: Partial<Record<BookingStatus, number>>;
+};
+
+export type CustomerSummary = {
+  totalCustomers: number;
+  visibleCustomers: number;
+  noBookingCustomers: number;
+  newCustomers: number;
+  repeatedCustomers: number;
+  vipCustomers: number;
+  repeatRate: number;
+  totalValue: number;
 };
 
 export type CalendarBooking = {
@@ -247,6 +275,24 @@ export type DashboardSourceSummary = {
   inquiriesBySource: SourceSummaryRow[];
   revenueBySource: SourceSummaryRow[];
   topCampaigns: CampaignSummaryRow[];
+};
+
+export type DashboardRecentInquiry = Pick<
+  Inquiry,
+  "id" | "inquiryType" | "name" | "email" | "phone" | "createdAt"
+>;
+
+export type DashboardOverview = {
+  counts: {
+    tours: number | null;
+    blogs: number | null;
+    bookings: number | null;
+    inquiries: number | null;
+    customers: number | null;
+    users: number | null;
+  };
+  recentInquiries: DashboardRecentInquiry[];
+  sourceSummary: DashboardSourceSummary;
 };
 
 export type NavigationItem = {

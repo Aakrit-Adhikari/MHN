@@ -179,7 +179,6 @@ export default function CalendarPage() {
     <>
       <PageHeader
         title="Calendar"
-        description="Monthly booking calendar grouped by flight date."
         actions={<Link className="btn btn-gold" href="/bookings"><Plus className="h-4 w-4" /> New Booking</Link>}
       />
 
@@ -205,7 +204,6 @@ export default function CalendarPage() {
       <div className="calendar-toolbar">
         <div>
           <h2>{monthLabel(month)}</h2>
-          <p>Powered by FullCalendar. Color-coded by booking status.</p>
         </div>
         <div className="calendar-controls">
           <select value={tourId} onChange={(event) => setTourId(event.target.value)}>
@@ -242,7 +240,7 @@ export default function CalendarPage() {
       </div>
 
       {loading ? <LoadingState /> : null}
-      {error ? <ErrorState title="Calendar could not be loaded" message={error} /> : null}
+      {error ? <ErrorState title="Calendar could not be loaded" /> : null}
 
       <div className="fullcalendar-card">
         <FullCalendar

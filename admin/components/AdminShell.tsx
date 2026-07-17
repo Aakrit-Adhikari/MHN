@@ -2,31 +2,42 @@
 
 import {
   BarChart3,
-  Bell,
   BookOpen,
   CalendarCheck,
   CalendarDays,
+  Check,
+  ChevronDown,
   CircleDollarSign,
   Home,
   LogOut,
   Mail,
   Menu,
   MessageSquare,
-  Navigation,
   PieChart,
   PictureInPicture2,
   Radio,
-  Search,
   Settings,
+  ShieldCheck,
+  Undo2,
   UserRoundCog,
   Users,
   X
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccessDenied } from "@/components/AccessDenied";
-import { clearStoredSession, getStoredToken, getStoredUser, getStoredUserName } from "@/lib/api";
+import {
+  apiFetch,
+  clearOriginalSession,
+  clearStoredSession,
+  getOriginalSession,
+  getStoredToken,
+  getStoredUser,
+  getStoredUserName,
+  setStoredSession,
+  storeOriginalSession
+} from "@/lib/api";
 import { initials } from "@/lib/format";
 import { hasPermission, isSuperAdmin, permissionForPath, roleRequiredForPath } from "@/lib/permissions";
 import type { PermissionKey, User } from "@/types/api";
@@ -43,7 +54,6 @@ const navItems = [
   { href: "/sources", label: "Sources", icon: Radio, section: "Business", permission: "VIEW_DASHBOARD" },
   { href: "/finance", label: "Finance", icon: CircleDollarSign, section: "Business", permission: "VIEW_FINANCE" },
   { href: "/reports", label: "Reports", icon: PieChart, section: "Business", permission: "VIEW_REPORTS" },
-  { href: "/navigation", label: "Navigation", icon: Navigation, section: "Website", permission: "VIEW_NAVIGATION" },
   { href: "/alert-popup", label: "Alert Popup", icon: PictureInPicture2, section: "Website", permission: "VIEW_SETTINGS", role: "SUPER_ADMIN" },
   { href: "/settings", label: "Settings", icon: Settings, section: "Website", permission: "VIEW_SETTINGS" },
   { href: "/users", label: "Users & Roles", icon: UserRoundCog, section: "Admin", permission: "VIEW_USERS" }
@@ -63,6 +73,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [userName, setUserName] = useState("Administrator");
   const [user, setUser] = useState<User | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [accounts, setAccounts] = useState<User[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [switchingUserId, setSwitchingUserId] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState("");
+  const [originalSession, setOriginalSession] = useState<ReturnType<typeof getOriginalSession>>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -74,7 +91,29 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
     setUserName(getStoredUserName());
     setUser(getStoredUser());
+    setOriginalSession(getOriginalSession());
   }, [router]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    function closeMenu(event: MouseEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setAccountMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [accountMenuOpen]);
 
   const visibleNavItems = navItems.filter((item) => {
     if (item.role === "SUPER_ADMIN" && !isSuperAdmin(user)) return false;
@@ -90,6 +129,69 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }
 
+  async function openAccountMenu() {
+    const nextOpen = !accountMenuOpen;
+    setAccountMenuOpen(nextOpen);
+    setAccountError("");
+
+    if (!nextOpen || !isSuperAdmin(user) || accounts.length) return;
+
+    const token = getStoredToken();
+    if (!token) return;
+
+    setAccountsLoading(true);
+    try {
+      const users = await apiFetch<User[]>("/admin/users", { token });
+      setAccounts(users.filter((account) => account.status === "ACTIVE" && account.role !== "CUSTOMER"));
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "Accounts could not be loaded.");
+    } finally {
+      setAccountsLoading(false);
+    }
+  }
+
+  async function switchAccount(account: User) {
+    const token = getStoredToken();
+    if (!token || !user || account.id === user.id) return;
+
+    setSwitchingUserId(account.id);
+    setAccountError("");
+    try {
+      const session = await apiFetch<{ token: string; user: User }>("/admin/auth/impersonate", {
+        method: "POST",
+        token,
+        body: JSON.stringify({ userId: account.id })
+      });
+      storeOriginalSession(token, user);
+      setStoredSession(session.token, session.user);
+      setUser(session.user);
+      setUserName(session.user.name || session.user.username);
+      setOriginalSession(getOriginalSession());
+      setAccountMenuOpen(false);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "Account could not be selected.");
+    } finally {
+      setSwitchingUserId(null);
+    }
+  }
+
+  function returnToSuperAdmin() {
+    if (!originalSession) return;
+    setStoredSession(originalSession.token, originalSession.user);
+    clearOriginalSession();
+    setUser(originalSession.user);
+    setUserName(originalSession.user.name || originalSession.user.username);
+    setOriginalSession(null);
+    setAccounts([]);
+    setAccountMenuOpen(false);
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  const canSwitchAccounts = isSuperAdmin(user) || Boolean(originalSession);
+
   return (
     <div className="app-shell">
       <button
@@ -99,11 +201,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       />
       <aside className={`sidebar ${open ? "is-open" : ""}`}>
         <div className="sidebar-brand">
-          <div className="brand-logo">
-            <div className="brand-mark">M</div>
-            <div>
-              <div className="brand-text">Mountain Helicopters</div>
-              <div className="brand-sub">Admin · Nepal</div>
+          <div className="brand-lockup">
+            <img
+              className="brand-logo-image"
+              src="/mountain-helicopters-nepal-logo.jpeg"
+              alt="Mountain Helicopters Nepal"
+            />
+            <div className="brand-role">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Dashboard</span>
             </div>
           </div>
           <button className="sidebar-close" aria-label="Close menu" onClick={() => setOpen(false)}>
@@ -158,18 +264,73 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <button className="hamburger" aria-label="Open navigation" onClick={() => setOpen(true)}>
               <Menu className="h-5 w-5" />
             </button>
-            <h2 className="page-title">{pageTitle}</h2>
+            <h1 className="page-title">{pageTitle}</h1>
           </div>
-          <div className="topbar-right">
-            <div className="search-box">
-              <Search className="h-4 w-4" />
-              <input placeholder="Search tours, blogs, inquiries..." />
+          {canSwitchAccounts ? (
+            <div className="account-switcher" ref={accountMenuRef}>
+              <button
+                className="account-switcher-trigger"
+                type="button"
+                aria-expanded={accountMenuOpen}
+                aria-haspopup="menu"
+                onClick={openAccountMenu}
+              >
+                <span className="account-switcher-avatar">{initials(userName)}</span>
+                <span className="account-switcher-identity">
+                  <strong>{userName}</strong>
+                  <small>{user?.role.replace(/_/g, " ")}</small>
+                </span>
+                <ChevronDown className={`h-4 w-4 account-switcher-chevron ${accountMenuOpen ? "is-open" : ""}`} />
+              </button>
+
+              {accountMenuOpen ? (
+                <div className="account-switcher-menu" role="menu">
+                  <div className="account-switcher-heading">
+                    <strong>{originalSession ? "Viewing account" : "Switch account"}</strong>
+                  </div>
+
+                  {originalSession ? (
+                    <button className="account-return-button" type="button" role="menuitem" onClick={returnToSuperAdmin}>
+                      <Undo2 className="h-4 w-4" />
+                      <span>
+                        <strong>Return to {originalSession.user.name || originalSession.user.username}</strong>
+                        <small>Super Admin</small>
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="account-switcher-list">
+                      {accountsLoading ? <div className="account-switcher-state">Loading accounts...</div> : null}
+                      {!accountsLoading && !accountError && accounts.map((account) => {
+                        const accountName = account.name || account.username;
+                        const selected = account.id === user?.id;
+
+                        return (
+                          <button
+                            className={`account-switcher-option ${selected ? "is-selected" : ""}`}
+                            type="button"
+                            role="menuitem"
+                            key={account.id}
+                            disabled={selected || switchingUserId !== null}
+                            onClick={() => switchAccount(account)}
+                          >
+                            <span className="account-option-avatar">{initials(accountName)}</span>
+                            <span className="account-option-copy">
+                              <strong>{accountName}</strong>
+                              <small>{account.role.replace(/_/g, " ")}</small>
+                            </span>
+                            {selected ? <Check className="h-4 w-4" /> : null}
+                            {switchingUserId === account.id ? <span className="account-option-loading">Switching...</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {accountError ? <div className="account-switcher-error">{accountError}</div> : null}
+                </div>
+              ) : null}
             </div>
-            <button className="icon-btn" aria-label="Notifications">
-              <Bell className="h-5 w-5" />
-              <span className="dot" />
-            </button>
-          </div>
+          ) : null}
         </header>
         <div className="content">{canViewPage ? children : <AccessDenied />}</div>
       </main>

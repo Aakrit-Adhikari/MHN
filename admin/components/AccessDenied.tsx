@@ -7,7 +7,7 @@ export function AccessDenied() {
         <ShieldAlert className="h-6 w-6" />
       </div>
       <h1>Access denied</h1>
-      <p>You do not have permission to view this section. Ask a super admin to update your role or permissions.</p>
+      <p>Your account does not have access to this section.</p>
     </div>
   );
 }

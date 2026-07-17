@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MHN Customer Auth Test</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section id="authCard" class="auth-card">
+        <div class="brand-mark">MHN</div>
+        <h1>Customer Login Test</h1>
+        <p class="subtitle">Check real customer auth with the backend</p>
+
+        <div class="status-line">
+          Backend: <strong id="backendStatus">checking...</strong>
+        </div>
+        <div class="status-line">
+          Session: <strong id="sessionStatus">checking...</strong>
+        </div>
+        <div class="status-line">
+          Database: <strong id="databaseStatus">checking...</strong>
+        </div>
+        <div class="status-line">
+          OAuth: <strong id="oauthStatus">checking...</strong>
+        </div>
+
+        <div class="social-stack">
+          <button class="social facebook" data-oauth-start="facebook" type="button">
+            <span>f</span>
+            Facebook
+          </button>
+          <button class="social google" data-oauth-start="google" type="button">
+            <span>G</span>
+            Google
+          </button>
+          <button class="social apple" data-oauth-start="apple" type="button">
+            <span></span>
+            Apple
+          </button>
+          <button class="social email" id="showEmailBtn" type="button">
+            <span>@</span>
+            Via Email
+          </button>
+        </div>
+
+        <div id="emailForms" class="email-forms hidden">
+          <div class="mode-row">
+            <button class="mode active" data-mode="login" type="button">Login</button>
+            <button class="mode" data-mode="signup" type="button">Signup</button>
+          </div>
+
+          <form id="loginForm" class="auth-form active-form">
+            <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
+            <button class="submit-btn" type="submit">Login</button>
+          </form>
+
+          <form id="registerForm" class="auth-form">
+            <label>Name<input name="name" autocomplete="name" required /></label>
+            <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Password<input name="password" type="password" minlength="8" autocomplete="new-password" required /></label>
+            <label>Confirm Password<input name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required /></label>
+            <button class="submit-btn" type="submit">Signup</button>
+          </form>
+        </div>
+
+        <details class="mock-panel">
+          <summary>Local mock login</summary>
+          <p>Use only when provider credentials are not configured.</p>
+          <div class="mock-row">
+            <button data-oauth-mock="facebook" type="button">Mock Facebook</button>
+            <button data-oauth-mock="google" type="button">Mock Google</button>
+            <button data-oauth-mock="apple" type="button">Mock Apple</button>
+          </div>
+        </details>
+
+        <p id="message" class="message"></p>
+      </section>
+
+      <section id="customerCard" class="customer-card hidden">
+        <div class="customer-header">
+          <div>
+            <div class="brand-mark small">MHN</div>
+            <h1>Logged In</h1>
+          </div>
+          <button id="logoutBtn" type="button">Logout</button>
+        </div>
+
+        <h2>Customer</h2>
+        <pre id="customerJson"></pre>
+
+        <form id="bookingForm" class="booking-form">
+          <h2>Create Test Booking</h2>
+          <label>Tour Name<input name="tourName" value="Test Booking" required /></label>
+          <label>Amount USD<input name="amount" type="number" min="1" value="100" required /></label>
+          <label>Booking Date<input name="bookingDate" type="date" /></label>
+          <label>Passenger Count<input name="passengerCount" type="number" min="1" value="1" required /></label>
+          <button class="submit-btn" type="submit">Create Booking</button>
+        </form>
+
+        <h2>My Bookings</h2>
+        <pre id="bookingsJson"></pre>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

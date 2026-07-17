@@ -27,7 +27,7 @@ const emptyNewsletter: NewsletterForm = {
   title: "",
   subject: "",
   previewText: "",
-  contentHtml: "<h1>Mountain Helicopters Nepal Update</h1><p>Write your newsletter content here.</p>",
+  contentHtml: "",
   contentText: "",
   audienceType: "ALL_SUBSCRIBERS"
 };
@@ -215,7 +215,7 @@ export default function NewslettersPage() {
         token: getStoredToken(),
         body: JSON.stringify({ email })
       });
-      window.alert("Test newsletter prepared. Check backend logs while provider is mock.");
+      window.alert("Test newsletter queued.");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to send test newsletter.");
     }
@@ -257,7 +257,6 @@ export default function NewslettersPage() {
     <>
       <PageHeader
         title="Newsletters"
-        description="Create branded email newsletters and manage subscribers."
         actions={
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-secondary" onClick={() => setOpenSubscribersList(true)}>
@@ -295,12 +294,12 @@ export default function NewslettersPage() {
       </div>
 
       {newsletters.loading || subscribers.loading ? <LoadingState /> : null}
-      {newsletters.error ? <ErrorState title="Newsletters could not be loaded" message={newsletters.error.message} /> : null}
-      {subscribers.error ? <ErrorState title="Subscribers could not be loaded" message={subscribers.error.message} /> : null}
+      {newsletters.error ? <ErrorState title="Newsletters could not be loaded" /> : null}
+      {subscribers.error ? <ErrorState title="Subscribers could not be loaded" /> : null}
       {actionError ? <div className="mt-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
 
       {!newsletters.loading && !newsletters.error && !newsletters.data?.length ? (
-        <EmptyState title="No newsletters yet" message="Create a draft newsletter to start building your email list workflow." />
+        <EmptyState title="No newsletters" />
       ) : null}
 
       {newsletters.data?.length ? (
@@ -362,7 +361,6 @@ export default function NewslettersPage() {
             <div className="modal-header">
               <div>
                 <h2>New Newsletter</h2>
-                <p>Create a branded email draft.</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpenNewsletter(false)} aria-label="Close">
                 <X className="h-5 w-5" />
@@ -381,7 +379,7 @@ export default function NewslettersPage() {
                 Audience
                 <select value={newsletterForm.audienceType} onChange={(event) => setNewsletterForm({ ...newsletterForm, audienceType: event.target.value as NewsletterForm["audienceType"] })}>
                   <option value="ALL_SUBSCRIBERS">All subscribers</option>
-                  <option value="PREMIUM_USERS">Premium users later</option>
+                  <option value="PREMIUM_USERS">Premium users</option>
                   <option value="CUSTOM">Custom</option>
                 </select>
               </label>
@@ -412,7 +410,6 @@ export default function NewslettersPage() {
             <div className="modal-header">
               <div>
                 <h2>Add Subscriber</h2>
-                <p>Add an email address to the newsletter list.</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpenSubscriber(false)} aria-label="Close">
                 <X className="h-5 w-5" />
@@ -442,7 +439,6 @@ export default function NewslettersPage() {
             <div className="modal-header">
               <div>
                 <h2>Subscribers</h2>
-                <p>View, edit, activate, deactivate, or delete newsletter subscribers.</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpenSubscribersList(false)} aria-label="Close">
                 <X className="h-5 w-5" />
@@ -450,9 +446,9 @@ export default function NewslettersPage() {
             </div>
 
             {subscribers.loading ? <LoadingState /> : null}
-            {subscribers.error ? <ErrorState title="Subscribers could not be loaded" message={subscribers.error.message} /> : null}
+            {subscribers.error ? <ErrorState title="Subscribers could not be loaded" /> : null}
             {!subscribers.loading && !subscribers.error && !subscribers.data?.length ? (
-              <EmptyState title="No subscribers found" message="Add the first subscriber to manage the list here." />
+              <EmptyState title="No subscribers found" />
             ) : null}
 
             {subscribers.data?.length ? (
@@ -553,7 +549,6 @@ export default function NewslettersPage() {
             <div className="modal-header">
               <div>
                 <h2>Email Preview</h2>
-                <p>Rendered from the backend newsletter template.</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setPreviewHtml("")} aria-label="Close">
                 <X className="h-5 w-5" />

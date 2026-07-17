@@ -87,7 +87,6 @@ export function UserForm({
       <div className="modal-header">
         <div>
           <h2>{user ? "Edit Admin User" : "Create Admin User"}</h2>
-          <p>Assign role, status, and module access.</p>
         </div>
       </div>
 
@@ -132,7 +131,6 @@ export function UserForm({
       <div className="permissions-panel">
         <div>
           <h3>Permissions</h3>
-          <p>Switch modules on or off for this admin user.</p>
         </div>
         <div className="permissions-grid">
           {permissions.map((permission) => (

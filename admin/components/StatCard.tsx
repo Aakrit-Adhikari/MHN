@@ -9,7 +9,7 @@ export function StatCard({
 }: {
   label: string;
   value: string | number;
-  meta: string;
+  meta?: string;
   icon: LucideIcon;
   tone?: "navy" | "gold" | "blue" | "green";
 }) {
@@ -20,7 +20,7 @@ export function StatCard({
         {label}
       </div>
       <div className="stat-value">{value}</div>
-      <div className="stat-meta">{meta}</div>
+      {meta ? <div className="stat-meta">{meta}</div> : null}
     </div>
   );
 }

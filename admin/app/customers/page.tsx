@@ -1,79 +1,19 @@
 "use client";
 
-import Link from "next/link";
+import { Download, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Search, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/State";
-import { formatDate, money } from "@/lib/format";
+import { formatDate, initials, money } from "@/lib/format";
 import { useApiData } from "@/lib/useApiData";
-import type { Booking, BookingStatus } from "@/types/api";
+import type { BookingStatus, CustomerCategory, CustomerRecord, CustomerSummary } from "@/types/api";
 
-type CustomerRecord = {
-  key: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  bookings: Booking[];
-  bookingCount: number;
-  totalAmount: number;
-  latestBooking: Booking;
-  latestBookingAt: string;
-  statuses: Partial<Record<BookingStatus, number>>;
+type CustomersResponse = {
+  customers: CustomerRecord[];
+  summary: CustomerSummary;
 };
 
-function customerKey(booking: Booking) {
-  const email = booking.customerEmail?.trim().toLowerCase();
-  if (email) return `email:${email}`;
-
-  const phone = booking.customerPhone?.replace(/\D/g, "");
-  if (phone) return `phone:${phone}`;
-
-  return `name:${booking.customerName.trim().toLowerCase()}`;
-}
-
-function bookingTime(booking: Booking) {
-  return new Date(booking.bookingDate ?? booking.createdAt).getTime();
-}
-
-function buildCustomers(bookings: Booking[]) {
-  const records = new Map<string, CustomerRecord>();
-
-  bookings.forEach((booking) => {
-    const key = customerKey(booking);
-    const existing = records.get(key);
-
-    if (!existing) {
-      records.set(key, {
-        key,
-        name: booking.customerName,
-        email: booking.customerEmail,
-        phone: booking.customerPhone,
-        bookings: [booking],
-        bookingCount: 1,
-        totalAmount: booking.amount ?? 0,
-        latestBooking: booking,
-        latestBookingAt: booking.bookingDate ?? booking.createdAt,
-        statuses: { [booking.status]: 1 }
-      });
-      return;
-    }
-
-    existing.bookings.push(booking);
-    existing.bookingCount += 1;
-    existing.totalAmount += booking.amount ?? 0;
-    existing.email ||= booking.customerEmail;
-    existing.phone ||= booking.customerPhone;
-    existing.statuses[booking.status] = (existing.statuses[booking.status] ?? 0) + 1;
-
-    if (bookingTime(booking) > bookingTime(existing.latestBooking)) {
-      existing.latestBooking = booking;
-      existing.latestBookingAt = booking.bookingDate ?? booking.createdAt;
-    }
-  });
-
-  return Array.from(records.values()).sort((left, right) => bookingTime(right.latestBooking) - bookingTime(left.latestBooking));
-}
+type CustomerSort = "RECENT" | "VALUE" | "BOOKINGS" | "NAME";
 
 function statusBadgeClass(status: BookingStatus) {
   if (status === "CONFIRMED") return "badge-green";
@@ -82,136 +22,198 @@ function statusBadgeClass(status: BookingStatus) {
   return "badge-grey";
 }
 
+function categoryBadgeClass(category: CustomerCategory) {
+  if (category === "VIP") return "badge-gold";
+  if (category === "REPEATED") return "badge-blue";
+  if (category === "NEW") return "badge-green";
+  return "badge-grey";
+}
+
+function categoryLabel(category: CustomerCategory) {
+  if (category === "NO_BOOKING") return "No Booking";
+  if (category === "REPEATED") return "Repeat";
+  return category[0] + category.slice(1).toLowerCase();
+}
+
+function accountSource(customer: CustomerRecord) {
+  if (!customer.authProviders.length) return "Customer account";
+  return customer.authProviders.map((provider) => (
+    provider === "LOCAL" ? "Email" : provider[0] + provider.slice(1).toLowerCase()
+  )).join(", ");
+}
+
+function csvCell(value: string | number) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 export default function CustomersPage() {
-  const { data, loading, error } = useApiData<Booking[]>("/admin/bookings", true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "ALL">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<CustomerCategory | "ALL">("ALL");
+  const [sort, setSort] = useState<CustomerSort>("RECENT");
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("category", categoryFilter);
+    params.set("sort", sort);
+    if (search.trim()) params.set("search", search.trim());
+    return params.toString();
+  }, [categoryFilter, search, sort]);
+  const { data, loading, error } = useApiData<CustomersResponse>(`/admin/customers?${query}`, true);
 
-  const customers = useMemo(() => buildCustomers(data ?? []), [data]);
-  const filteredCustomers = useMemo(() => {
-    const term = search.trim().toLowerCase();
+  const customers = data?.customers ?? [];
+  const summary = data?.summary;
 
-    return customers.filter((customer) => {
-      const matchesSearch = !term || [
+  function exportCustomers() {
+    if (!customers.length) return;
+
+    const rows = [
+      ["Customer", "Email", "Phone", "Tag", "Bookings", "Lifetime Value", "Last Booking", "Account Source"],
+      ...customers.map((customer) => [
         customer.name,
-        customer.email,
-        customer.phone,
-        customer.latestBooking.tour?.title
-      ].some((value) => value?.toLowerCase().includes(term));
-
-      const matchesStatus = statusFilter === "ALL" || customer.bookings.some((booking) => booking.status === statusFilter);
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [customers, search, statusFilter]);
-
-  const totalBookings = data?.length ?? 0;
-  const repeatCustomers = customers.filter((customer) => customer.bookingCount > 1).length;
-  const totalValue = customers.reduce((sum, customer) => sum + customer.totalAmount, 0);
+        customer.email ?? "",
+        customer.phone ?? "",
+        categoryLabel(customer.category),
+        customer.bookingCount,
+        customer.totalSpent,
+        customer.latestBookingAt ?? "",
+        accountSource(customer),
+      ]),
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "mhn-customers.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <>
       <PageHeader
         title="Customers"
-        description="Customer profiles built from booking records and manual bookings."
+        description={summary ? `${summary.totalCustomers} customers · ${summary.repeatRate}% repeat rate` : undefined}
         actions={
-          <Link className="btn btn-gold" href="/bookings">
-            <UsersRound className="h-4 w-4" /> Manage Bookings
-          </Link>
+          <button className="btn btn-secondary" onClick={exportCustomers} disabled={!customers.length}>
+            <Download className="h-4 w-4" /> Export
+          </button>
         }
       />
 
       {loading ? <LoadingState label="Loading customer records..." /> : null}
-      {error ? <ErrorState title="Customers could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Customers could not be loaded" /> : null}
 
-      {!loading && !error && data?.length ? (
+      {!loading && !error && summary ? (
         <>
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-label">Customers</div>
-              <div className="stat-value">{customers.length}</div>
-              <div className="stat-meta">Unique booking contacts</div>
+              <div className="stat-label">Total Customers</div>
+              <div className="stat-value">{summary.totalCustomers}</div>
+              <div className="stat-meta">{summary.visibleCustomers} shown with current filters</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">No Booking</div>
+              <div className="stat-value">{summary.noBookingCustomers}</div>
+              <div className="stat-meta">Customer lifetime value is $0</div>
             </div>
             <div className="stat-card blue">
-              <div className="stat-label">Bookings</div>
-              <div className="stat-value">{totalBookings}</div>
-              <div className="stat-meta">Across all customers</div>
-            </div>
-            <div className="stat-card green">
-              <div className="stat-label">Repeat</div>
-              <div className="stat-value">{repeatCustomers}</div>
-              <div className="stat-meta">Customers with 2+ bookings</div>
+              <div className="stat-label">Repeat Customers</div>
+              <div className="stat-value">{summary.repeatedCustomers}</div>
+              <div className="stat-meta">{summary.repeatRate}% of customers with value</div>
             </div>
             <div className="stat-card gold">
-              <div className="stat-label">Value</div>
-              <div className="stat-value">{money(totalValue)}</div>
-              <div className="stat-meta">Recorded booking amount</div>
+              <div className="stat-label">Lifetime Value</div>
+              <div className="stat-value">{money(summary.totalValue)}</div>
+              <div className="stat-meta">Confirmed and completed bookings</div>
             </div>
           </div>
 
           <div className="card mb-4">
-            <div className="card-body flex flex-wrap items-center justify-between gap-3">
-              <div className="search-box">
+            <div className="card-body flex flex-wrap items-center gap-3">
+              <div className="search-box customer-search">
                 <Search className="h-4 w-4" />
                 <input
                   aria-label="Search customers"
-                  placeholder="Search customers"
+                  placeholder="Search name, email, phone or tour"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </div>
               <select
                 className="admin-select"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as BookingStatus | "ALL")}
+                aria-label="Filter by customer tag"
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value as CustomerCategory | "ALL")}
               >
-                <option value="ALL">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
+                <option value="ALL">All Customers</option>
+                <option value="NO_BOOKING">No Booking</option>
+                <option value="NEW">New</option>
+                <option value="REPEATED">Repeat</option>
+                <option value="VIP">VIP</option>
+              </select>
+              <select
+                className="admin-select"
+                aria-label="Sort customers"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as CustomerSort)}
+              >
+                <option value="RECENT">Sort: Recent activity</option>
+                <option value="VALUE">Sort: Lifetime value</option>
+                <option value="BOOKINGS">Sort: Booking count</option>
+                <option value="NAME">Sort: Customer name</option>
               </select>
             </div>
           </div>
         </>
       ) : null}
 
-      {!loading && !error && !data?.length ? (
-        <EmptyState title="No customers found" message="Customers will appear here automatically when bookings are created." />
+      {!loading && !error && !customers.length ? (
+        <EmptyState title="No customers found" message="Try changing the search or customer tag filter." />
       ) : null}
 
-      {!loading && !error && data?.length && !filteredCustomers.length ? (
-        <EmptyState title="No matching customers" message="Try another search term or status filter." />
-      ) : null}
-
-      {!loading && !error && filteredCustomers.length ? (
+      {!loading && !error && customers.length ? (
         <div className="card">
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Customer</th>
-                  <th>Contact</th>
+                  <th>Account</th>
                   <th>Bookings</th>
-                  <th>Total Value</th>
-                  <th>Latest Booking</th>
-                  <th>Status Mix</th>
+                  <th>Last Booking</th>
+                  <th>Lifetime Value</th>
+                  <th>Tags</th>
+                  <th>Booking Status</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((customer) => (
-                  <tr key={customer.key}>
+                {customers.map((customer) => (
+                  <tr key={customer.id}>
                     <td>
-                      <div className="t-name">{customer.name}</div>
-                      <div className="t-meta">{customer.latestBooking.tour?.title ?? "Custom booking"}</div>
+                      <div className="customer-cell">
+                        <div className="customer-avatar">
+                          {customer.avatarUrl ? <img src={customer.avatarUrl} alt="" /> : initials(customer.name)}
+                        </div>
+                        <div>
+                          <div className="t-name">{customer.name}</div>
+                          <div className="t-meta">{customer.email || customer.phone || "No contact details"}</div>
+                        </div>
+                      </div>
                     </td>
                     <td>
-                      <div>{customer.email || "No email"}</div>
-                      <div className="t-meta">{customer.phone || "No phone"}</div>
+                      <div>{accountSource(customer)}</div>
+                      <div className="t-meta">Joined {customer.joinedAt ? formatDate(customer.joinedAt) : "date unavailable"}</div>
                     </td>
                     <td>{customer.bookingCount}</td>
-                    <td>{money(customer.totalAmount)}</td>
-                    <td>{formatDate(customer.latestBookingAt)}</td>
+                    <td>
+                      <div>{customer.latestBookingAt ? formatDate(customer.latestBookingAt) : "Never"}</div>
+                      <div className="t-meta">{customer.latestTourTitle ?? "No completed booking"}</div>
+                    </td>
+                    <td><strong className="customer-value">{money(customer.totalSpent)}</strong></td>
+                    <td>
+                      <span className={`badge ${categoryBadgeClass(customer.category)}`}>
+                        {categoryLabel(customer.category)}
+                      </span>
+                    </td>
                     <td>
                       <div className="flex flex-wrap gap-2">
                         {(Object.entries(customer.statuses) as [BookingStatus, number][]).map(([status, count]) => (
@@ -219,6 +221,7 @@ export default function CustomersPage() {
                             {status} {count}
                           </span>
                         ))}
+                        {!Object.keys(customer.statuses).length ? <span className="t-meta">No activity</span> : null}
                       </div>
                     </td>
                   </tr>

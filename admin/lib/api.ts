@@ -125,6 +125,37 @@ export function setStoredSession(token: string, user: User) {
   document.cookie = `mhn_admin_session=${encodeURIComponent(token)}; path=/; max-age=86400; samesite=lax`;
 }
 
+const ORIGINAL_SESSION_KEY = "mhn_superadmin_session";
+
+type StoredSession = {
+  token: string;
+  user: User;
+};
+
+export function storeOriginalSession(token: string, user: User) {
+  if (typeof window === "undefined" || window.sessionStorage.getItem(ORIGINAL_SESSION_KEY)) return;
+  window.sessionStorage.setItem(ORIGINAL_SESSION_KEY, JSON.stringify({ token, user } satisfies StoredSession));
+}
+
+export function getOriginalSession() {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(ORIGINAL_SESSION_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as StoredSession;
+  } catch {
+    window.sessionStorage.removeItem(ORIGINAL_SESSION_KEY);
+    return null;
+  }
+}
+
+export function clearOriginalSession() {
+  if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem(ORIGINAL_SESSION_KEY);
+  }
+}
+
 export function getStoredUser() {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem("mhn_admin_user");
@@ -146,6 +177,7 @@ export function getStoredUserName() {
 export function clearStoredSession() {
   window.localStorage.removeItem("mhn_admin_token");
   window.localStorage.removeItem("mhn_admin_user");
+  clearOriginalSession();
   document.cookie = "mhn_admin_session=; path=/; max-age=0; samesite=lax";
 }
 

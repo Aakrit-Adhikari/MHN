@@ -201,15 +201,14 @@ export default function BlogsPage() {
     <>
       <PageHeader
         title="Blogs"
-        description="Create, edit, and remove website blog posts."
         actions={<button className="btn btn-gold" onClick={openNew}><FilePlus className="h-4 w-4" /> New Blog</button>}
       />
 
       {loading ? <LoadingState /> : null}
-      {error ? <ErrorState title="Blogs could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Blogs could not be loaded" /> : null}
       {actionError ? <div className="mb-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
       {!loading && !error && !data?.length ? (
-        <EmptyState title="No blogs found" message="Create the first blog post to show it here." />
+        <EmptyState title="No blogs found" />
       ) : null}
 
       {data?.length ? (
@@ -285,7 +284,6 @@ export default function BlogsPage() {
             <div className="modal-header">
               <div>
                 <h2>{editing ? "Edit Blog" : "New Blog"}</h2>
-                <p>{editing ? "Update the selected post." : "Add a new website blog post."}</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">
                 <X className="h-5 w-5" />

@@ -38,7 +38,8 @@ export const openApiDocument = {
         },
     ],
     tags: [
-        { name: "Auth", description: "Authentication endpoints" },
+        { name: "Auth", description: "Customer authentication endpoints" },
+        { name: "Admin Auth", description: "Admin authentication endpoints" },
         { name: "Tours", description: "Tour listing and admin management" },
         { name: "Inquiries", description: "Customer inquiry submission and admin management" },
         { name: "Blogs", description: "Public blog endpoints" },
@@ -61,7 +62,50 @@ export const openApiDocument = {
                 type: "object",
                 required: ["email", "password"],
                 properties: {
-                    email: { type: "string", format: "email", example: "admin@example.com" },
+                    email: { type: "string", format: "email", example: "customer@example.com" },
+                    password: { type: "string", example: "password123" },
+                },
+            },
+            RegisterRequest: {
+                type: "object",
+                required: ["name", "email", "password", "confirmPassword"],
+                properties: {
+                    name: { type: "string", example: "Demo Customer" },
+                    email: { type: "string", format: "email", example: "customer@example.com" },
+                    password: { type: "string", minLength: 8, example: "password123" },
+                    confirmPassword: { type: "string", minLength: 8, example: "password123" },
+                },
+            },
+            OAuthProvider: {
+                type: "string",
+                enum: ["google", "facebook", "apple"],
+            },
+            Customer: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    name: { type: "string" },
+                    email: { type: "string", format: "email" },
+                    avatarUrl: { type: "string", nullable: true },
+                    category: { type: "string", enum: ["LEAD", "NEW", "REPEATED", "VIP"] },
+                    totalBookings: { type: "integer" },
+                    totalSpent: { type: "integer" },
+                    lastBookingAt: { type: "string", format: "date-time", nullable: true },
+                    createdAt: { type: "string", format: "date-time" },
+                },
+            },
+            CustomerAuthResponse: apiResponse({
+                type: "object",
+                properties: {
+                    token: { type: "string" },
+                    customer: { $ref: "#/components/schemas/Customer" },
+                },
+            }),
+            AdminLoginRequest: {
+                type: "object",
+                required: ["username", "password"],
+                properties: {
+                    username: { type: "string", example: "admin" },
                     password: { type: "string", example: "password123" },
                 },
             },
@@ -298,10 +342,38 @@ export const openApiDocument = {
         },
     },
     paths: {
+        "/api/auth/register": {
+            post: {
+                tags: ["Auth"],
+                summary: "Register a customer with email and password",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/RegisterRequest" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Customer registered",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/CustomerAuthResponse" } } },
+                    },
+                    "400": {
+                        description: "Missing fields or invalid password",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                    "409": {
+                        description: "Email is already registered",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
         "/api/auth/login": {
             post: {
                 tags: ["Auth"],
-                summary: "Log in an admin user",
+                summary: "Log in a customer with email and password",
                 requestBody: {
                     required: true,
                     content: {
@@ -313,6 +385,158 @@ export const openApiDocument = {
                 responses: {
                     "200": {
                         description: "Login successful",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/CustomerAuthResponse" } } },
+                    },
+                    "401": {
+                        description: "Invalid credentials",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/auth/me": {
+            get: {
+                tags: ["Auth"],
+                summary: "Get the currently logged-in customer",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "Customer returned",
+                        content: { "application/json": { schema: apiResponse({ $ref: "#/components/schemas/Customer" }) } },
+                    },
+                    "401": {
+                        description: "Missing or invalid customer token",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/auth/oauth/{provider}/start": {
+            get: {
+                tags: ["Auth"],
+                summary: "Start customer OAuth login/signup",
+                description: "Redirects to Google, Facebook, or Apple. Apple requires APPLE_CLIENT_ID and APPLE_CLIENT_SECRET in Backend/.env.",
+                parameters: [
+                    {
+                        name: "provider",
+                        in: "path",
+                        required: true,
+                        schema: { $ref: "#/components/schemas/OAuthProvider" },
+                    },
+                ],
+                responses: {
+                    "302": { description: "Redirect to OAuth provider" },
+                    "400": {
+                        description: "Provider credentials are missing",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                    "404": {
+                        description: "Unknown OAuth provider",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/auth/oauth/{provider}/callback": {
+            get: {
+                tags: ["Auth"],
+                summary: "OAuth callback for Google/Facebook and fallback Apple redirects",
+                parameters: [
+                    {
+                        name: "provider",
+                        in: "path",
+                        required: true,
+                        schema: { $ref: "#/components/schemas/OAuthProvider" },
+                    },
+                    {
+                        name: "code",
+                        in: "query",
+                        required: true,
+                        schema: { type: "string" },
+                    },
+                ],
+                responses: {
+                    "302": { description: "Redirect to customer app with oauthToken or oauthError" },
+                },
+            },
+            post: {
+                tags: ["Auth"],
+                summary: "Apple OAuth form_post callback",
+                parameters: [
+                    {
+                        name: "provider",
+                        in: "path",
+                        required: true,
+                        schema: { $ref: "#/components/schemas/OAuthProvider" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/x-www-form-urlencoded": {
+                            schema: {
+                                type: "object",
+                                required: ["code"],
+                                properties: {
+                                    code: { type: "string" },
+                                    user: {
+                                        type: "string",
+                                        description: "Apple user JSON string, usually only sent on the first authorization.",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "302": { description: "Redirect to customer app with oauthToken or oauthError" },
+                },
+            },
+        },
+        "/api/auth/oauth/{provider}/mock": {
+            post: {
+                tags: ["Auth"],
+                summary: "Mock customer OAuth login/signup for local testing",
+                description: "Works when ALLOW_MOCK_OAUTH=true. Use provider apple to test Apple account creation without real Apple credentials.",
+                parameters: [
+                    {
+                        name: "provider",
+                        in: "path",
+                        required: true,
+                        schema: { $ref: "#/components/schemas/OAuthProvider" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "Mock OAuth login successful",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/CustomerAuthResponse" } } },
+                    },
+                    "403": {
+                        description: "Mock OAuth is disabled",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                    "404": {
+                        description: "Unknown OAuth provider",
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+                    },
+                },
+            },
+        },
+        "/api/admin/auth/login": {
+            post: {
+                tags: ["Admin Auth"],
+                summary: "Log in an admin user",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/AdminLoginRequest" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "Admin login successful",
                         content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
                     },
                     "401": {

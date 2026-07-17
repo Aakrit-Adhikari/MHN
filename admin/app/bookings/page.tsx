@@ -128,16 +128,15 @@ export default function BookingsPage() {
     <>
       <PageHeader
         title="Bookings"
-        description="Track confirmed and pending bookings, customers, tours, and booking value."
         actions={<button className="btn btn-gold" onClick={openCreate}><Plus className="h-4 w-4" /> Manual Booking</button>}
       />
 
       {loading ? <LoadingState /> : null}
-      {error ? <ErrorState title="Bookings could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Bookings could not be loaded" /> : null}
       {actionError ? <div className="mb-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
 
       {!loading && !error && !data?.length ? (
-        <EmptyState title="No bookings found" message="Manual bookings and booking inquiries will appear here." />
+        <EmptyState title="No bookings found" />
       ) : null}
 
       {!loading && !error && data?.length ? (
@@ -184,7 +183,6 @@ export default function BookingsPage() {
             <div className="modal-header">
               <div>
                 <h2>{editing ? "Edit Booking" : "Manual Booking"}</h2>
-                <p>Amount defaults from the selected tour price when left blank.</p>
               </div>
               <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">
                 <X className="h-5 w-5" />

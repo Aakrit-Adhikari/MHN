@@ -1,8 +1,7 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { ErrorState, LoadingState } from "@/components/State";
+import { EmptyState, ErrorState, LoadingState } from "@/components/State";
 import { ApiError } from "@/lib/api";
 import { useApiData } from "@/lib/useApiData";
 import type { NavigationItem } from "@/types/api";
@@ -13,25 +12,13 @@ export default function NavigationPage() {
 
   return (
     <>
-      <PageHeader
-        title="Navigation"
-        description="Review website menu items when navigation management is available."
-      />
+      <PageHeader title="Navigation" />
 
       {loading ? <LoadingState /> : null}
       {missing ? (
-        <div className="alert alert-warning mb-4">
-          <AlertTriangle className="h-5 w-5" />
-          <div>
-            <strong>Navigation management is not available yet</strong>
-            <p>
-              This page needs a navigation endpoint before menu items can be listed or edited.
-              Required backend route: GET /api/navigation. For editing, add protected create, update, and delete routes.
-            </p>
-          </div>
-        </div>
+        <EmptyState title="Navigation is unavailable" />
       ) : error ? (
-        <ErrorState title="Navigation could not be loaded" message={error.message} />
+        <ErrorState title="Navigation could not be loaded" />
       ) : null}
 
       {data?.length ? (

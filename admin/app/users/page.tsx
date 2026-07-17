@@ -86,16 +86,15 @@ export default function UsersPage() {
     <>
       <PageHeader
         title="Users & Roles"
-        description="Manage admin users, roles, account status, and module permissions."
         actions={<button className="btn btn-gold" onClick={openCreate}><Plus className="h-4 w-4" /> New User</button>}
       />
 
       {loading ? <LoadingState /> : null}
-      {error ? <ErrorState title="Users could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Users could not be loaded" /> : null}
       {actionError ? <div className="mb-4"><ErrorState title="Action failed" message={actionError} /></div> : null}
 
       {!loading && !error && !users.data?.length ? (
-        <EmptyState title="No admin users found" message="Create the first admin user to assign dashboard access." />
+        <EmptyState title="No admin users found" />
       ) : null}
 
       {!loading && !error && users.data?.length ? (

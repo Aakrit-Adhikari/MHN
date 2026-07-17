@@ -19,15 +19,11 @@ function totalCampaignHits(rows: Array<{ count: number }>) {
 
 function SourceTable({
   title,
-  description,
   rows,
-  emptyMessage,
   formatValue = (value) => String(value)
 }: {
   title: string;
-  description: string;
   rows: SourceSummaryRow[];
-  emptyMessage: string;
   formatValue?: (value: number) => string;
 }) {
   return (
@@ -35,7 +31,6 @@ function SourceTable({
       <div className="card-header">
         <div>
           <div className="card-title">{title}</div>
-          <div className="card-subtitle">{description}</div>
         </div>
       </div>
       {rows.length ? (
@@ -61,7 +56,7 @@ function SourceTable({
         </div>
       ) : (
         <div className="card-body">
-          <EmptyState title="No source data" message={emptyMessage} />
+          <EmptyState title="No source data" />
         </div>
       )}
     </div>
@@ -80,12 +75,11 @@ export default function SourcesPage() {
     <>
       <PageHeader
         title="Sources"
-        description="Track where bookings, inquiries, campaigns, and revenue are coming from."
         actions={<Link className="btn btn-secondary" href="/bookings">Back to Bookings</Link>}
       />
 
       {loading ? <LoadingState label="Loading source reports..." /> : null}
-      {error ? <ErrorState title="Sources could not be loaded" message={error.message} /> : null}
+      {error ? <ErrorState title="Sources could not be loaded" /> : null}
 
       {!loading && !error ? (
         <>
@@ -115,31 +109,24 @@ export default function SourcesPage() {
           <div className="dash-grid">
             <SourceTable
               title="Bookings by Source"
-              description="Booking records grouped by source attribution."
               rows={bookingRows}
-              emptyMessage="Booking source data will appear once bookings include attribution."
             />
             <SourceTable
               title="Inquiries by Source"
-              description="Customer inquiries grouped by source attribution."
               rows={inquiryRows}
-              emptyMessage="Inquiry source data will appear once inquiries include attribution."
             />
           </div>
 
           <div className="dash-grid mt-4">
             <SourceTable
               title="Revenue by Source"
-              description="Booking amount grouped by source attribution."
               rows={revenueRows}
-              emptyMessage="Revenue source data will appear once bookings include amounts."
               formatValue={(value) => money(value)}
             />
             <div className="card">
               <div className="card-header">
                 <div>
                   <div className="card-title">Top Campaigns</div>
-                  <div className="card-subtitle">Campaign name and UTM campaign performance.</div>
                 </div>
               </div>
               {campaignRows.length ? (
@@ -163,7 +150,7 @@ export default function SourcesPage() {
                 </div>
               ) : (
                 <div className="card-body">
-                  <EmptyState title="No campaign data" message="Campaign data will appear when UTM campaign or campaign names are saved." />
+                  <EmptyState title="No campaign data" />
                 </div>
               )}
             </div>
