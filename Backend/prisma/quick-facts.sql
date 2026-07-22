@@ -1,0 +1,2 @@
+ALTER TABLE "tours"
+ADD COLUMN IF NOT EXISTS "quick_facts" JSONB;

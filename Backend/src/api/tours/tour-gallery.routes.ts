@@ -106,6 +106,13 @@ router.post("/", authenticate, requireAdmin, uploadTourGalleryImage, async (req,
             return;
         }
 
+        const galleryCount = await prisma.tourGallery.count({ where: { tourId: tour.id } });
+        if (galleryCount >= 9) {
+            deleteOldImage(normalizeUploadPath(req.file.path));
+            res.status(400).json({ success: false, message: "A tour can have a maximum of 9 gallery images." });
+            return;
+        }
+
         const validatedData = galleryBodySchema.parse(req.body);
         const sortOrder = validatedData.sortOrder ?? await getNextSortOrder(tour.id);
 

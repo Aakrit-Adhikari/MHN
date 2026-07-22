@@ -69,6 +69,12 @@ model Tour {
   location        String?
   groupSize       String?       @map("group_size")
   bestSeason      String?       @map("best_season")
+  quickFacts      Json?         @map("quick_facts")
+  observances     Json?
+  flightFeels     Json?         @map("flight_feels")
+  journey         Json?
+  peaksEncountered Json?         @map("peaks_encountered")
+  includedPermits Json?          @map("included_permits")
   price           Int?
   coverImageUrl   String?       @map("cover_image_url")
   contentImageUrl String?       @map("content_image_url")
@@ -79,8 +85,24 @@ model Tour {
   gallery         TourGallery[]
   inquiries       Inquiry[]
   bookings        Booking[]
+  dressGuideItems TourDressGuideItem[]
 
   @@map("tours")
+}
+
+model TourDressGuideItem {
+  id        String   @id @default(cuid())
+  tourId    String   @map("tour_id")
+  layer     String
+  item      String
+  why       String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tour      Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@map("tour_dress_guide_items")
 }
 
 model TourFaq {

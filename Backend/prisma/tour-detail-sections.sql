@@ -1,0 +1,5 @@
+ALTER TABLE "tours"
+ADD COLUMN IF NOT EXISTS "flight_feels" JSONB,
+ADD COLUMN IF NOT EXISTS "journey" JSONB,
+ADD COLUMN IF NOT EXISTS "peaks_encountered" JSONB,
+ADD COLUMN IF NOT EXISTS "included_permits" JSONB;
