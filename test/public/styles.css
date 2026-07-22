@@ -1,0 +1,263 @@
+:root {
+  --text: #273043;
+  --muted: #8994aa;
+  --line: #e4e7ee;
+  --blue: #1877f2;
+  --red: #f52b2b;
+  --dark: #111827;
+  --slate: #73819d;
+  --ok: #16833a;
+  --bad: #c62828;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  font-family: Arial, sans-serif;
+  color: var(--text);
+  background: #fff;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.page {
+  width: min(520px, calc(100% - 32px));
+  padding: 24px 0;
+}
+
+.auth-card,
+.customer-card {
+  width: 100%;
+}
+
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #eef4ff;
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.brand-mark.small {
+  width: 38px;
+  height: 38px;
+  margin: 0;
+}
+
+h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+h2 {
+  margin: 24px 0 10px;
+  font-size: 18px;
+}
+
+.subtitle {
+  margin: 14px 0 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.status-line {
+  margin: 6px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.bad {
+  color: var(--bad);
+}
+
+.social-stack {
+  display: grid;
+  gap: 14px;
+  margin: 28px 0;
+}
+
+.social {
+  min-height: 48px;
+  border: 0;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #fff;
+  font-weight: 800;
+}
+
+.social:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.social span {
+  width: 22px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.facebook {
+  background: var(--blue);
+}
+
+.google {
+  background: var(--red);
+}
+
+.apple {
+  background: var(--dark);
+}
+
+.email {
+  background: var(--slate);
+}
+
+.email-forms {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mode {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+}
+
+.mode.active {
+  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.auth-form,
+.booking-form {
+  display: none;
+  gap: 12px;
+}
+
+.auth-form.active-form,
+.booking-form {
+  display: grid;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+input {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid #cfd5df;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.submit-btn {
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 800;
+}
+
+.mock-panel {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mock-panel summary {
+  cursor: pointer;
+}
+
+.mock-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mock-row button,
+#logoutBtn {
+  min-height: 34px;
+  border: 1px solid #cfd5df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.message {
+  min-height: 22px;
+  margin-top: 18px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.customer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.customer-header h1 {
+  text-align: left;
+}
+
+pre {
+  overflow: auto;
+  max-height: 280px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.hidden {
+  display: none;
+}

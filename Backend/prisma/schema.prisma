@@ -8,64 +8,319 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  role         UserRole @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  passwordHash String
+  id              String           @id @default(cuid())
+  name            String?
+  username        String           @unique
+  email           String?          @unique
+  passwordHash    String           @map("password_hash")
+  role            UserRole         @default(EMPLOYEE)
+  status          UserStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  newsletters     Newsletter[]
+  userPermissions UserPermission[]
+
+  @@map("users")
+}
+
+model CustomerAccount {
+  id            String                 @id @default(cuid())
+  name          String
+  email         String                 @unique
+  passwordHash  String?                @map("password_hash")
+  avatarUrl     String?                @map("avatar_url")
+  category      CustomerCategory       @default(LEAD)
+  totalBookings Int                    @default(0) @map("total_bookings")
+  totalSpent    Int                    @default(0) @map("total_spent")
+  lastBookingAt DateTime?              @map("last_booking_at")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  authProviders CustomerAuthProvider[]
+  bookings      Booking[]
+
+  @@map("customer_accounts")
+}
+
+model CustomerAuthProvider {
+  id             String          @id @default(cuid())
+  customerId     String          @map("customer_id")
+  provider       AuthProvider
+  providerUserId String          @map("provider_user_id")
+  providerEmail  String?         @map("provider_email")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  customer       CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@map("customer_auth_providers")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  name            String
+  key             String           @unique
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  userPermissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  userId       String     @map("user_id")
+  permissionId String     @map("permission_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model TourCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tours     Tour[]
+
+  @@map("tour_categories")
 }
 
 model Tour {
-  id          String    @id @default(cuid())
-  slug        String    @unique
-  title       String
-  summary     String
-  content     String
-  priceFrom   Int?
-  duration    String?
-  isPublished Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  photoUrl    String?
-  inquiries   Inquiry[]
+  id              String        @id @default(cuid())
+  categoryId      String?       @map("category_id")
+  slug            String        @unique
+  title           String
+  summary         String
+  description     String
+  metaTitle       String?       @map("meta_title")
+  metaDescription String?       @map("meta_description")
+  duration        String?
+  altitude        String?
+  location        String?
+  groupSize       String?       @map("group_size")
+  bestSeason      String?       @map("best_season")
+  price           Int?
+  coverImageUrl   String?       @map("cover_image_url")
+  contentImageUrl String?       @map("content_image_url")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  category        TourCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  faqs            TourFaq[]
+  gallery         TourGallery[]
+  inquiries       Inquiry[]
+  bookings        Booking[]
+
+  @@map("tours")
+}
+
+model TourFaq {
+  id        String   @id @default(cuid())
+  tourId    String   @map("tour_id")
+  question  String
+  answer    String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tour      Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@map("tour_faqs")
+}
+
+model TourGallery {
+  id        String   @id @default(cuid())
+  tourId    String   @map("tour_id")
+  imageUrl  String   @map("image_url")
+  caption   String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tour      Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@map("tour_gallery")
 }
 
 model Inquiry {
-  id          String      @id @default(cuid())
-  type        InquiryType
-  name        String
-  email       String
-  phone       String?
-  message     String
-  locale      String      @default("en")
-  utmSource   String?
-  utmMedium   String?
-  utmCampaign String?
-  tourId      String?
-  createdAt   DateTime    @default(now())
-  tour        Tour?       @relation(fields: [tourId], references: [id])
+  id            String        @id @default(cuid())
+  tourId        String?       @map("tour_id")
+  inquiryType   InquiryType   @map("inquiry_type")
+  name          String
+  email         String
+  phone         String?
+  preferredDate DateTime?     @map("preferred_date")
+  message       String
+  status        InquiryStatus @default(NEW)
+  sourceType    SourceType?   @map("source_type")
+  sourceName    String?       @map("source_name")
+  sourceMedium  String?       @map("source_medium")
+  campaignName  String?       @map("campaign_name")
+  utmSource     String?       @map("utm_source")
+  utmMedium     String?       @map("utm_medium")
+  utmCampaign   String?       @map("utm_campaign")
+  utmTerm       String?       @map("utm_term")
+  utmContent    String?       @map("utm_content")
+  referrerUrl   String?       @map("referrer_url")
+  landingPage   String?       @map("landing_page")
+  sourceNote    String?       @map("source_note")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  tour          Tour?         @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  booking       Booking?
+
+  @@map("inquiries")
+}
+
+model Booking {
+  id                String           @id @default(cuid())
+  inquiryId         String?          @unique @map("inquiry_id")
+  tourId            String?          @map("tour_id")
+  customerAccountId String?          @map("customer_account_id")
+  customerName      String           @map("customer_name")
+  customerEmail     String?          @map("customer_email")
+  customerPhone     String?          @map("customer_phone")
+  bookingDate       DateTime?        @map("booking_date")
+  passengerCount    Int?             @map("passenger_count")
+  amount            Int?
+  currency          String           @default("USD")
+  status            BookingStatus    @default(PENDING)
+  paymentStatus     PaymentStatus    @default(PENDING) @map("payment_status")
+  notes             String?
+  sourceType        SourceType?      @map("source_type")
+  sourceName        String?          @map("source_name")
+  sourceMedium      String?          @map("source_medium")
+  campaignName      String?          @map("campaign_name")
+  utmSource         String?          @map("utm_source")
+  utmMedium         String?          @map("utm_medium")
+  utmCampaign       String?          @map("utm_campaign")
+  utmTerm           String?          @map("utm_term")
+  utmContent        String?          @map("utm_content")
+  referrerUrl       String?          @map("referrer_url")
+  landingPage       String?          @map("landing_page")
+  sourceNote        String?          @map("source_note")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  inquiry           Inquiry?         @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  tour              Tour?            @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  customerAccount   CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
+
+  @@index([bookingDate])
+  @@index([tourId])
+  @@map("bookings")
 }
 
 model BlogPost {
-  id            String   @id @default(cuid())
-  title         String
-  content       String
-  coverImageUrl String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  content         String
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  imageUrl        String?  @map("image_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("blogs")
+}
+
+model AlertPopup {
+  id        String    @id @default(cuid())
+  title     String?
+  imageUrl  String    @map("image_url")
+  linkUrl   String?   @map("link_url")
+  isActive  Boolean   @default(true) @map("is_active")
+  startsAt  DateTime? @map("starts_at")
+  endsAt    DateTime? @map("ends_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("alert_popups")
+}
+
+model Helicopters {
+  id               String   @id @default(cuid())
+  helicopterNumber String   @unique @map("helicopter_number")
+  model            String
+  pictureUrl       String   @map("picture_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("helicopters")
+}
+
+model NewsletterSubscriber {
+  id               String                @id @default(cuid())
+  email            String                @unique
+  name             String?
+  isSubscribed     Boolean               @default(true) @map("is_subscribed")
+  unsubscribeToken String                @unique @map("unsubscribe_token")
+  unsubscribedAt   DateTime?             @map("unsubscribed_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  recipients       NewsletterRecipient[]
+
+  @@map("newsletter_subscribers")
+}
+
+model Newsletter {
+  id           String                 @id @default(cuid())
+  title        String
+  subject      String
+  previewText  String?                @map("preview_text")
+  contentHtml  String                 @map("content_html")
+  contentText  String?                @map("content_text")
+  audienceType NewsletterAudienceType @default(ALL_SUBSCRIBERS) @map("audience_type")
+  status       NewsletterStatus       @default(DRAFT)
+  createdById  String?                @map("created_by_id")
+  sentAt       DateTime?              @map("sent_at")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+  createdBy    User?                  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  recipients   NewsletterRecipient[]
+
+  @@map("newsletters")
+}
+
+model NewsletterRecipient {
+  id           String                @id @default(cuid())
+  newsletterId String                @map("newsletter_id")
+  subscriberId String?               @map("subscriber_id")
+  email        String
+  name         String?
+  status       NewsletterSendStatus  @default(PENDING)
+  provider     String?
+  error        String?
+  sentAt       DateTime?             @map("sent_at")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+  newsletter   Newsletter            @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  subscriber   NewsletterSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+
+  @@unique([newsletterId, email])
+  @@map("newsletter_recipients")
 }
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
-  USER
+  FINANCE
+  HR
+  OPERATIONS
+  EMPLOYEE
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
 }
 
 enum InquiryType {
-  BOOKING
-  CHARTER
   CONTACT
+  CHARTER
+  BOOKING
 }
 
 model NavigationItem {
@@ -79,4 +334,72 @@ model NavigationItem {
   isExternal Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+enum InquiryStatus {
+  NEW
+  IN_PROGRESS
+  CONTACTED
+  CONVERTED
+  CLOSED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  UNPAID
+  PAID_IN_FULL
+}
+
+enum SourceType {
+  WEBSITE
+  ADS
+  SOCIAL
+  OTA
+  WHATSAPP
+  PHONE
+  REFERRAL
+  WALK_IN
+  MANUAL
+  OTHER
+}
+
+enum CustomerCategory {
+  LEAD
+  NEW
+  REPEATED
+  VIP
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum NewsletterAudienceType {
+  ALL_SUBSCRIBERS
+  PREMIUM_USERS
+  CUSTOM
+}
+
+enum NewsletterStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+enum NewsletterSendStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
 }

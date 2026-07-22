@@ -1,25 +1,55 @@
-import { Router } from "express";
 import fs from "fs";
 import path from "path";
-import { prisma } from "../../config/database";
-import { authenticate, requireAdmin } from "../../middleware/auth.middleware";
-import { normalizeUploadPath, uploadBlogCoverImage } from "../../middleware/upload.middleware";
+import { Router } from "express";
+
+import { prisma } from "../../config/database.js";
+import { authenticate, requirePermission } from "../../middleware/auth.middleware.js";
+import { normalizeUploadPath, uploadBlogCoverImage } from "../../middleware/upload.middleware.js";
 import {
     createBlogPostSchema,
     partialBlogPostSchema,
     updateBlogPostSchema,
-} from "../../types/blog.schema";
+} from "../../types/blog.schema.js";
 
 export const publicBlogRouter = Router();
 export const adminBlogRouter = Router();
 
-const deleteOldCoverImage = (coverImageUrl: string | null) => {
-    if (!coverImageUrl) return;
+const getParam = (value: string | string[]) => {
+    return Array.isArray(value) ? value[0] : value;
+};
 
-    const filePath = path.join(process.cwd(), coverImageUrl);
-    fs.unlink(filePath, (err) => {
+const deleteOldCoverImage = (imageUrl: string | null) => {
+    if (!imageUrl) return;
+
+    fs.unlink(path.join(process.cwd(), imageUrl), (err) => {
         if (err && err.code !== "ENOENT") {
             console.error("Failed to delete old blog cover image:", err);
+        }
+    });
+};
+
+const deleteUploadedCoverImage = (file?: Express.Multer.File) => {
+    if (file) {
+        deleteOldCoverImage(normalizeUploadPath(file.path));
+    }
+};
+
+const normalizeBlogBody = (body: Record<string, any>) => {
+    if (body.imageUrl === undefined && body.coverImageUrl !== undefined) {
+        body.imageUrl = body.coverImageUrl;
+    }
+
+    if (body.slug === "") {
+        delete body.slug;
+    }
+
+    if (body.imageUrl === "") {
+        body.imageUrl = null;
+    }
+
+    ["metaTitle", "metaDescription"].forEach((key) => {
+        if (body[key] === "") {
+            body[key] = null;
         }
     });
 };
@@ -36,11 +66,10 @@ publicBlogRouter.get("/", async (_req, res, next) => {
     }
 });
 
-publicBlogRouter.get("/:id", async (req, res, next) => {
+publicBlogRouter.get("/:slug", async (req, res, next) => {
     try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const blogPost = await prisma.blogPost.findUnique({
-            where: { id },
+            where: { slug: getParam(req.params.slug) },
         });
 
         if (!blogPost) {
@@ -57,121 +86,169 @@ publicBlogRouter.get("/:id", async (req, res, next) => {
 adminBlogRouter.post(
     "/",
     authenticate,
-    requireAdmin,
+    requirePermission("VIEW_BLOGS"),
     uploadBlogCoverImage,
     async (req, res, next) => {
         try {
+            normalizeBlogBody(req.body);
             const validatedData = createBlogPostSchema.parse(req.body);
+
+            const existingBlogPost = await prisma.blogPost.findUnique({
+                where: { slug: validatedData.slug },
+                select: { id: true },
+            });
+
+            if (existingBlogPost) {
+                deleteUploadedCoverImage(req.file);
+                res.status(400).json({
+                    success: false,
+                    message: "A blog post with this slug already exists.",
+                });
+                return;
+            }
 
             const blogPost = await prisma.blogPost.create({
                 data: {
                     title: validatedData.title,
+                    slug: validatedData.slug,
                     content: validatedData.content,
-                    coverImageUrl: req.file ? normalizeUploadPath(req.file.path) : null,
+                    metaTitle: validatedData.metaTitle,
+                    metaDescription: validatedData.metaDescription,
+                    imageUrl: req.file
+                        ? normalizeUploadPath(req.file.path)
+                        : validatedData.imageUrl ?? null,
                 },
             });
 
             res.status(201).json({ success: true, data: blogPost });
         } catch (error) {
-            if (req.file) deleteOldCoverImage(normalizeUploadPath(req.file.path));
+            deleteUploadedCoverImage(req.file);
             next(error);
         }
     }
 );
 
-adminBlogRouter.get("/", authenticate, requireAdmin, async (_req, res, next) => {
-    try {
-        const blogPosts = await prisma.blogPost.findMany({
-            orderBy: { createdAt: "desc" },
-        });
-
-        res.status(200).json({ success: true, data: blogPosts });
-    } catch (error) {
-        next(error);
-    }
-});
-
-adminBlogRouter.get("/:id", authenticate, requireAdmin, async (req, res, next) => {
-    try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const blogPost = await prisma.blogPost.findUnique({
-            where: { id },
-        });
-
-        if (!blogPost) {
-            res.status(404).json({ success: false, message: "Blog post not found" });
-            return;
-        }
-
-        res.status(200).json({ success: true, data: blogPost });
-    } catch (error) {
-        next(error);
-    }
-});
-
-adminBlogRouter.patch(
-    "/:id",
+adminBlogRouter.get(
+    "/",
     authenticate,
-    requireAdmin,
-    uploadBlogCoverImage,
-    async (req, res, next) => {
+    requirePermission("VIEW_BLOGS"),
+    async (_req, res, next) => {
         try {
-            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-            const existingBlogPost = await prisma.blogPost.findUnique({
-                where: { id },
+            const blogPosts = await prisma.blogPost.findMany({
+                orderBy: { createdAt: "desc" },
             });
 
-            if (!existingBlogPost) {
-                if (req.file) deleteOldCoverImage(normalizeUploadPath(req.file.path));
+            res.json({ success: true, data: blogPosts });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+adminBlogRouter.get(
+    "/:id",
+    authenticate,
+    requirePermission("VIEW_BLOGS"),
+    async (req, res, next) => {
+        try {
+            const blogPost = await prisma.blogPost.findUnique({
+                where: { id: getParam(req.params.id) },
+            });
+
+            if (!blogPost) {
                 res.status(404).json({ success: false, message: "Blog post not found" });
                 return;
             }
 
-            const coverImageUrl = req.file ? normalizeUploadPath(req.file.path) : undefined;
-            const validatedData = coverImageUrl
+            res.json({ success: true, data: blogPost });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+adminBlogRouter.patch(
+    "/:id",
+    authenticate,
+    requirePermission("VIEW_BLOGS"),
+    uploadBlogCoverImage,
+    async (req, res, next) => {
+        try {
+            const id = getParam(req.params.id);
+            const existingBlogPost = await prisma.blogPost.findUnique({ where: { id } });
+
+            if (!existingBlogPost) {
+                deleteUploadedCoverImage(req.file);
+                res.status(404).json({ success: false, message: "Blog post not found" });
+                return;
+            }
+
+            normalizeBlogBody(req.body);
+
+            const imageUrl = req.file ? normalizeUploadPath(req.file.path) : undefined;
+            const validatedData = imageUrl
                 ? partialBlogPostSchema.parse(req.body)
                 : updateBlogPostSchema.parse(req.body);
+
+            if (validatedData.slug && validatedData.slug !== existingBlogPost.slug) {
+                const duplicate = await prisma.blogPost.findFirst({
+                    where: {
+                        id: { not: id },
+                        slug: validatedData.slug,
+                    },
+                    select: { id: true },
+                });
+
+                if (duplicate) {
+                    deleteUploadedCoverImage(req.file);
+                    res.status(400).json({
+                        success: false,
+                        message: "A blog post with this slug already exists.",
+                    });
+                    return;
+                }
+            }
 
             const blogPost = await prisma.blogPost.update({
                 where: { id },
                 data: {
                     ...validatedData,
-                    ...(coverImageUrl ? { coverImageUrl } : {}),
+                    ...(imageUrl ? { imageUrl } : {}),
                 },
             });
 
-            if (coverImageUrl) {
-                deleteOldCoverImage(existingBlogPost.coverImageUrl);
+            if (imageUrl) {
+                deleteOldCoverImage(existingBlogPost.imageUrl);
             }
 
-            res.status(200).json({ success: true, data: blogPost });
+            res.json({ success: true, data: blogPost });
         } catch (error) {
-            if (req.file) deleteOldCoverImage(normalizeUploadPath(req.file.path));
+            deleteUploadedCoverImage(req.file);
             next(error);
         }
     }
 );
 
-adminBlogRouter.delete("/:id", authenticate, requireAdmin, async (req, res, next) => {
-    try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const existingBlogPost = await prisma.blogPost.findUnique({
-            where: { id },
-        });
+adminBlogRouter.delete(
+    "/:id",
+    authenticate,
+    requirePermission("VIEW_BLOGS"),
+    async (req, res, next) => {
+        try {
+            const id = getParam(req.params.id);
+            const existingBlogPost = await prisma.blogPost.findUnique({ where: { id } });
 
-        if (!existingBlogPost) {
-            res.status(404).json({ success: false, message: "Blog post not found" });
-            return;
+            if (!existingBlogPost) {
+                res.status(404).json({ success: false, message: "Blog post not found" });
+                return;
+            }
+
+            await prisma.blogPost.delete({ where: { id } });
+            deleteOldCoverImage(existingBlogPost.imageUrl);
+
+            res.json({ success: true, message: "Blog post deleted successfully" });
+        } catch (error) {
+            next(error);
         }
-
-        await prisma.blogPost.delete({
-            where: { id },
-        });
-
-        deleteOldCoverImage(existingBlogPost.coverImageUrl);
-
-        res.status(200).json({ success: true, message: "Blog post deleted successfully" });
-    } catch (error) {
-        next(error);
     }
-});
+);

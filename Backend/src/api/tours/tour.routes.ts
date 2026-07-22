@@ -1,192 +1,279 @@
-import { Router } from 'express';
-import path from 'path';
-import fs from 'fs';
-import { prisma } from '../../config/database';
-import { createTourSchema, tourResponseSchema } from '../../types/tour.schema';
-import { uploadTourImage, normalizeUploadPath } from '../../middleware/upload.middleware';
-import { authenticate, requireAdmin } from '../../middleware/auth.middleware';
+import fs from "fs";
+import path from "path";
+import { Router } from "express";
+
+import { prisma } from "../../config/database.js";
+import { authenticate, requireAdmin } from "../../middleware/auth.middleware.js";
+import {
+    getUploadedFile,
+    normalizeUploadPath,
+    uploadTourImages,
+} from "../../middleware/upload.middleware.js";
+import {
+    createTourSchema,
+    tourResponseSchema,
+    updateTourSchema,
+} from "../../types/tour.schema.js";
 
 const router = Router();
 
-// ─── Helper ────────────────────────────────────────────────────────────────────
+const searchableFields = [
+    "title",
+    "slug",
+    "summary",
+    "description",
+    "duration",
+    "altitude",
+    "location",
+    "groupSize",
+    "bestSeason",
+] as const;
 
-/**
- * Deletes a previously uploaded file from disk.
- * Safe to call even if the file doesn't exist.
- */
-const deleteOldImage = (photoUrl: string | null) => {
-    if (!photoUrl) return;
-    const filePath = path.join(process.cwd(), photoUrl);
-    fs.unlink(filePath, (err) => {
-        if (err && err.code !== 'ENOENT') {
-            console.error('Failed to delete old image:', err);
+const tourInclude = {
+    category: true,
+    faqs: {
+        orderBy: { sortOrder: "asc" as const },
+    },
+    gallery: {
+        orderBy: { sortOrder: "asc" as const },
+    },
+};
+
+const getParam = (value: string | string[]) => {
+    return Array.isArray(value) ? value[0] : value;
+};
+
+const getTourFiles = (files: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] } | undefined) => ({
+    coverFile: getUploadedFile(files, "coverImage") ?? getUploadedFile(files, "photo"),
+    contentFile: getUploadedFile(files, "contentImage"),
+});
+
+const deleteOldImage = (imageUrl: string | null) => {
+    if (!imageUrl) return;
+
+    fs.unlink(path.join(process.cwd(), imageUrl), (err) => {
+        if (err && err.code !== "ENOENT") {
+            console.error("Failed to delete old image:", err);
         }
     });
 };
 
-// ─── POST: Create a new tour ────────────────────────────────────────────────────
+const deleteUploadedTourFiles = (
+    coverFile?: Express.Multer.File,
+    contentFile?: Express.Multer.File
+) => {
+    if (coverFile) {
+        deleteOldImage(normalizeUploadPath(coverFile.path));
+    }
 
-router.post('/', authenticate, requireAdmin, uploadTourImage, async (req, res, next) => {
-    try {
-        // Multer parses form-data as strings — convert priceFrom to number
-        if (req.body.priceFrom) {
-            req.body.priceFrom = parseInt(req.body.priceFrom, 10);
+    if (contentFile) {
+        deleteOldImage(normalizeUploadPath(contentFile.path));
+    }
+};
+
+const normalizeTourBody = (body: Record<string, any>) => {
+    if (body.description === undefined && typeof body.content === "string") {
+        body.description = body.content;
+    }
+
+    if (body.price === undefined && body.priceFrom !== undefined) {
+        body.price = body.priceFrom;
+    }
+
+    if (body.altitude === undefined && body.maxAltitude !== undefined) {
+        body.altitude = body.maxAltitude;
+    }
+
+    if (body.groupSize === undefined && body.passengers !== undefined) {
+        body.groupSize = body.passengers;
+    }
+
+    if (body.location === undefined && body.region !== undefined) {
+        body.location = body.region;
+    }
+
+    if (typeof body.price === "string" && body.price.trim()) {
+        body.price = parseInt(body.price, 10);
+    }
+
+    if (body.slug === "") {
+        delete body.slug;
+    }
+
+    [
+        "categoryId",
+        "duration",
+        "altitude",
+        "location",
+        "groupSize",
+        "bestSeason",
+        "price",
+        "coverImageUrl",
+        "contentImageUrl",
+        "metaTitle",
+        "metaDescription",
+    ].forEach((key) => {
+        if (body[key] === "") {
+            body[key] = null;
         }
+    });
 
-        const validatedData = createTourSchema.parse(req.body);
+    return body;
+};
+
+router.post("/", authenticate, requireAdmin, uploadTourImages, async (req, res, next) => {
+    try {
+        const validatedData = createTourSchema.parse(normalizeTourBody(req.body));
+        const { coverFile, contentFile } = getTourFiles(req.files);
 
         const existingTour = await prisma.tour.findUnique({
             where: { slug: validatedData.slug },
         });
 
         if (existingTour) {
-            // If a file was uploaded but we're rejecting the request, clean it up
-            if (req.file) deleteOldImage(normalizeUploadPath(req.file.path));
-
+            deleteUploadedTourFiles(coverFile, contentFile);
             res.status(400).json({
                 success: false,
-                message: 'A tour with this slug already exists. Please use a different title or slug.',
+                message: "A tour with this slug already exists.",
             });
             return;
         }
 
         const tour = await prisma.tour.create({
             data: {
+                categoryId: validatedData.categoryId,
                 title: validatedData.title,
                 slug: validatedData.slug,
                 summary: validatedData.summary,
-                content: validatedData.content,
-                priceFrom: validatedData.priceFrom,
+                description: validatedData.description,
+                metaTitle: validatedData.metaTitle,
+                metaDescription: validatedData.metaDescription,
                 duration: validatedData.duration,
-                // Stores: "uploads/tours/photo-1234567890.jpg"
-                photoUrl: req.file ? normalizeUploadPath(req.file.path) : null,
+                altitude: validatedData.altitude,
+                location: validatedData.location,
+                groupSize: validatedData.groupSize,
+                bestSeason: validatedData.bestSeason,
+                price: validatedData.price,
+                coverImageUrl: coverFile ? normalizeUploadPath(coverFile.path) : null,
+                contentImageUrl: contentFile ? normalizeUploadPath(contentFile.path) : null,
             },
+            include: tourInclude,
         });
-
-        const responseData = tourResponseSchema.parse(tour);
 
         res.status(201).json({
             success: true,
-            data: responseData,
+            data: tourResponseSchema.parse(tour),
         });
     } catch (error) {
-        // If validation fails after upload, clean up the orphaned file
-        if (req.file) deleteOldImage(normalizeUploadPath(req.file.path));
+        const { coverFile, contentFile } = getTourFiles(req.files);
+        deleteUploadedTourFiles(coverFile, contentFile);
         next(error);
     }
 });
 
-// ─── GET: All tours ─────────────────────────────────────────────────────────────
-
-router.get('/', async (req, res, next) => {
+router.get("/", async (req, res, next) => {
     try {
-        const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
         const where = search
             ? {
-                OR: [
-                    { title: { contains: search, mode: 'insensitive' as const } },
-                    { slug: { contains: search, mode: 'insensitive' as const } },
-                    { summary: { contains: search, mode: 'insensitive' as const } },
-                    { content: { contains: search, mode: 'insensitive' as const } },
-                    { duration: { contains: search, mode: 'insensitive' as const } },
-                ],
+                OR: searchableFields.map((field) => ({
+                    [field]: { contains: search, mode: "insensitive" as const },
+                })),
             }
             : undefined;
 
         const tours = await prisma.tour.findMany({
             where,
-            orderBy: { createdAt: 'desc' },
+            include: tourInclude,
+            orderBy: { createdAt: "desc" },
         });
 
-        res.status(200).json({ success: true, data: tours });
+        res.json({ success: true, data: tours });
     } catch (error) {
         next(error);
     }
 });
 
-// ─── GET: Single tour by slug ───────────────────────────────────────────────────
-
-router.get('/:slug', async (req, res, next) => {
+router.get("/:slug", async (req, res, next) => {
     try {
         const tour = await prisma.tour.findUnique({
-            where: { slug: req.params.slug },
+            where: { slug: getParam(req.params.slug) },
+            include: tourInclude,
         });
 
         if (!tour) {
-            res.status(404).json({ success: false, message: 'Tour not found' });
+            res.status(404).json({ success: false, message: "Tour not found" });
             return;
         }
 
-        res.status(200).json({ success: true, data: tour });
+        res.json({ success: true, data: tour });
     } catch (error) {
         next(error);
     }
 });
 
-// ─── PATCH: Update tour by slug ─────────────────────────────────────────────────
-
-router.patch('/:slug', authenticate, requireAdmin, uploadTourImage, async (req, res, next) => {
+router.patch("/:slug", authenticate, requireAdmin, uploadTourImages, async (req, res, next) => {
     try {
-        const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
-        let oldPhotoUrl: string | null = null;
+        const slug = getParam(req.params.slug);
+        const { coverFile, contentFile } = getTourFiles(req.files);
 
-        // Multer parses form-data as strings — convert priceFrom if present
-        if (req.body.priceFrom) {
-            req.body.priceFrom = parseInt(req.body.priceFrom, 10);
+        const existingTour = await prisma.tour.findUnique({
+            where: { slug },
+        });
+
+        if (!existingTour) {
+            deleteUploadedTourFiles(coverFile, contentFile);
+            res.status(404).json({ success: false, message: "Tour not found" });
+            return;
         }
 
-        const dataToUpdate: any = { ...req.body };
+        const data: any = updateTourSchema.parse(normalizeTourBody(req.body));
+        const oldCover = coverFile ? existingTour.coverImageUrl : null;
+        const oldContent = contentFile ? existingTour.contentImageUrl : null;
 
-        if (req.file) {
-            // Fetch the current tour to get the old image path
-            const existingTour = await prisma.tour.findUnique({ where: { slug } });
+        if (coverFile) {
+            data.coverImageUrl = normalizeUploadPath(coverFile.path);
+        }
 
-            oldPhotoUrl = existingTour?.photoUrl ?? null;
-            dataToUpdate.photoUrl = normalizeUploadPath(req.file.path);
+        if (contentFile) {
+            data.contentImageUrl = normalizeUploadPath(contentFile.path);
         }
 
         const tour = await prisma.tour.update({
             where: { slug },
-            data: dataToUpdate,
+            data,
+            include: tourInclude,
         });
 
-        // Remove the previous file only after the database points at the new image.
-        if (oldPhotoUrl) {
-            deleteOldImage(oldPhotoUrl);
-        }
+        deleteOldImage(oldCover);
+        deleteOldImage(oldContent);
 
-        res.status(200).json({ success: true, data: tour });
+        res.json({ success: true, data: tour });
     } catch (error) {
-        // Clean up uploaded file if the update failed
-        if (req.file) deleteOldImage(normalizeUploadPath(req.file.path));
+        const { coverFile, contentFile } = getTourFiles(req.files);
+        deleteUploadedTourFiles(coverFile, contentFile);
         next(error);
     }
 });
 
-// ─── DELETE: Delete tour by slug ────────────────────────────────────────────────
-
-router.delete('/:slug', authenticate, requireAdmin, async (req, res, next) => {
+router.delete("/:slug", authenticate, requireAdmin, async (req, res, next) => {
     try {
-        const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+        const slug = getParam(req.params.slug);
         const tour = await prisma.tour.findUnique({
             where: { slug },
         });
 
         if (!tour) {
-            res.status(404).json({ success: false, message: 'Tour not found' });
+            res.status(404).json({ success: false, message: "Tour not found" });
             return;
         }
 
-        // Delete image from disk before removing the record
-        if (tour.photoUrl) {
-            deleteOldImage(tour.photoUrl);
-        }
+        await prisma.tour.delete({ where: { slug } });
 
-        await prisma.tour.delete({
-            where: { slug },
-        });
+        deleteOldImage(tour.coverImageUrl);
+        deleteOldImage(tour.contentImageUrl);
 
-        res.status(200).json({ success: true, message: 'Tour deleted successfully' });
+        res.json({ success: true, message: "Tour deleted successfully" });
     } catch (error) {
         next(error);
     }
