@@ -108,14 +108,21 @@ const fullSourceSummaryAccess: SourceSummaryAccess = {
 };
 
 async function getSourceSummary(access = fullSourceSummaryAccess) {
-    const [inquirySources, bookingSources, inquiryCampaigns, bookingCampaigns] = await Promise.all([
+    const [inquirySources, bookingSources, revenueSources, inquiryCampaigns, bookingCampaigns] = await Promise.all([
         access.inquiries ? prisma.inquiry.groupBy({
             by: ["sourceType", "sourceName", "utmSource"],
             _count: { _all: true },
         }) : Promise.resolve([]),
-        access.bookings || access.revenue ? prisma.booking.groupBy({
+        access.bookings ? prisma.booking.groupBy({
             by: ["sourceType", "sourceName", "utmSource"],
             _count: { _all: true },
+        }) : Promise.resolve([]),
+        access.revenue ? prisma.booking.groupBy({
+            by: ["sourceType", "sourceName", "utmSource"],
+            where: {
+                status: "COMPLETED",
+                paymentStatus: "PAID_IN_FULL",
+            },
             _sum: { amount: true },
         }) : Promise.resolve([]),
         access.campaigns ? prisma.inquiry.groupBy({
@@ -141,9 +148,10 @@ async function getSourceSummary(access = fullSourceSummaryAccess) {
         if (access.bookings) {
             incrementSource(bookingsBySource, group, group._count._all);
         }
-        if (access.revenue && group._sum.amount) {
-            incrementSource(revenueBySource, group, group._sum.amount);
-        }
+    }
+
+    for (const group of revenueSources) {
+        if (group._sum.amount) incrementSource(revenueBySource, group, group._sum.amount);
     }
 
     for (const group of inquiryCampaigns) {

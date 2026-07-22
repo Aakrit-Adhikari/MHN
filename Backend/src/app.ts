@@ -25,6 +25,7 @@ import {
     publicNewsletterRouter,
 } from "./api/newsletters/newsletter.routes.js";
 import tourRoutes from "./api/tours/tour.routes.js";
+import { adminHelicoptersRouter, publicHelicoptersRouter } from "./api/helicopters/helicopters.routes.js";
 import swaggerRoutes from "./docs/swagger.routes.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 
@@ -47,6 +48,7 @@ app.use(swaggerRoutes);
 app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/tours", tourRoutes);
+app.use("/api/helicopters", publicHelicoptersRouter);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/navigation", navigationRoutes);
 app.use("/api/blogs", publicBlogRouter);
@@ -63,6 +65,7 @@ app.use("/api/admin/permissions", adminPermissionRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/blogs", adminBlogRouter);
 app.use("/api/admin/newsletters", adminNewsletterRouter);
+app.use("/api/admin/helicopters", adminHelicoptersRouter);
 
 app.use((req, res) => {
     res.status(404).json({

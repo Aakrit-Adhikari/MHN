@@ -7,6 +7,7 @@ export const modulePermissions: Record<string, PermissionKey> = {
   "/tours": "VIEW_TOURS",
   "/blogs": "VIEW_BLOGS",
   "/newsletters": "VIEW_NEWSLETTERS",
+  "/helicopters": "VIEW_HELICOPTERS",
   "/inquiries": "VIEW_INQUIRIES",
   "/customers": "VIEW_CUSTOMERS",
   "/sources": "VIEW_DASHBOARD",

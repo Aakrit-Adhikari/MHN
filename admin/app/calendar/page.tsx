@@ -3,6 +3,7 @@
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import type { DateClickArg } from "@fullcalendar/interaction";
 import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import type { DatesSetArg, EventClickArg, EventContentArg, EventInput } from "@fullcalendar/core";
@@ -12,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/PageHeader";
+import { ManualBookingModal } from "@/components/ManualBookingModal";
 import { ErrorState, LoadingState } from "@/components/State";
 import { apiFetch, getStoredToken } from "@/lib/api";
 import { money } from "@/lib/format";
@@ -75,6 +77,9 @@ export default function CalendarPage() {
   const [calendarView, setCalendarView] = useState<CalendarView>("dayGridMonth");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [manualBookingOpen, setManualBookingOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   const events = useMemo<EventInput[]>(() => {
     return bookings
@@ -144,7 +149,7 @@ export default function CalendarPage() {
     return () => {
       isCurrent = false;
     };
-  }, [month, tourId, status]);
+  }, [month, tourId, status, reloadKey]);
 
   function handleDatesSet(arg: DatesSetArg) {
     setMonth(toMonthKey(arg.view.currentStart));
@@ -152,6 +157,16 @@ export default function CalendarPage() {
 
   function handleEventClick(arg: EventClickArg) {
     router.push(`/bookings?bookingId=${arg.event.id}`);
+  }
+
+  function handleDateClick(arg: DateClickArg) {
+    setSelectedDate(arg.dateStr.slice(0, 10));
+    setManualBookingOpen(true);
+  }
+
+  function handleBookingSaved() {
+    setManualBookingOpen(false);
+    setReloadKey((key) => key + 1);
   }
 
   function moveMonth(direction: -1 | 1) {
@@ -251,16 +266,25 @@ export default function CalendarPage() {
           schedulerLicenseKey={process.env.NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY ?? "GPL-My-Project-Is-Open-Source"}
           headerToolbar={false}
           height="auto"
-          dayMaxEvents={3}
+          dayMaxEvents={false}
           fixedWeekCount={false}
           resources={resources}
           resourceAreaHeaderContent="Tours"
           events={events}
           datesSet={handleDatesSet}
           eventClick={handleEventClick}
+          dateClick={handleDateClick}
           eventContent={renderEventContent}
         />
       </div>
+
+      <ManualBookingModal
+        open={manualBookingOpen}
+        initialDate={selectedDate}
+        tours={tours}
+        onClose={() => setManualBookingOpen(false)}
+        onSaved={handleBookingSaved}
+      />
     </>
   );
 }

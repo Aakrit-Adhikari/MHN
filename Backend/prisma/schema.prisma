@@ -205,6 +205,8 @@ model Booking {
   tour              Tour?            @relation(fields: [tourId], references: [id], onDelete: SetNull)
   customerAccount   CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
 
+  @@index([bookingDate])
+  @@index([tourId])
   @@map("bookings")
 }
 
@@ -233,7 +235,19 @@ model AlertPopup {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
+  @@index([isActive])
   @@map("alert_popups")
+}
+
+model Helicopters {
+  id               String   @id @default(cuid())
+  helicopterNumber String   @unique @map("helicopter_number")
+  model            String
+  pictureUrl       String   @map("picture_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("helicopters")
 }
 
 model NewsletterSubscriber {

@@ -3,7 +3,7 @@ import { Router } from "express";
 
 import { prisma } from "../../config/database.js";
 import { authenticate, requirePermission } from "../../middleware/auth.middleware.js";
-import { getCustomerCategory, valueBookingStatuses } from "../../utils/customer-category.js";
+import { getCustomerCategory, isRevenueBooking } from "../../utils/customer-category.js";
 
 const router = Router();
 
@@ -40,10 +40,9 @@ const displayCategory = (bookingCount: number, totalSpent: number): CustomerDisp
 
 const addBooking = (
     record: CustomerRecord,
-    booking: BookingWithTour,
-    valueStatusSet: Set<BookingStatus>
+    booking: BookingWithTour
 ) => {
-    const isValueBooking = valueStatusSet.has(booking.status);
+    const isValueBooking = isRevenueBooking(booking);
 
     if (isValueBooking) {
         record.bookingCount += 1;
@@ -67,7 +66,6 @@ router.get("/", authenticate, requirePermission("VIEW_CUSTOMERS"), async (req, r
         const search = typeof req.query.search === "string" ? req.query.search.trim().toLowerCase() : "";
         const sort = typeof req.query.sort === "string" ? req.query.sort.toUpperCase() : "RECENT";
         const records = new Map<string, CustomerRecord>();
-        const valueStatusSet = new Set<BookingStatus>(valueBookingStatuses);
 
         const accounts = await prisma.customerAccount.findMany({
             include: {
@@ -98,7 +96,7 @@ router.get("/", authenticate, requirePermission("VIEW_CUSTOMERS"), async (req, r
             };
 
             records.set(account.id, record);
-            account.bookings.forEach((booking) => addBooking(record, booking, valueStatusSet));
+            account.bookings.forEach((booking) => addBooking(record, booking));
         }
 
         const allCustomers = Array.from(records.values()).map((record) => ({

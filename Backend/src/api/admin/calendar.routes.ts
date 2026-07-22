@@ -156,7 +156,11 @@ router.get("/summary", async (req, res, next) => {
             prisma.booking.count({ where: { ...where, status: "CANCELLED" } }),
             prisma.booking.count({ where: { ...where, status: "COMPLETED" } }),
             prisma.booking.aggregate({
-                where,
+                where: {
+                    ...where,
+                    status: "COMPLETED",
+                    paymentStatus: "PAID_IN_FULL",
+                },
                 _sum: {
                     passengerCount: true,
                     amount: true,

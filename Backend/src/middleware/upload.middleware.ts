@@ -6,6 +6,7 @@ const maxImageFileSize = 5 * 1024 * 1024;
 const tourUploadDir = "uploads/tours/";
 const blogUploadDir = "uploads/blogs/";
 const alertPopupUploadDir = "uploads/alert-popups/";
+const helicopterUploadDir = "uploads/helicopters/";
 
 const ensureUploadDir = (uploadDir: string) => {
     if (!fs.existsSync(uploadDir)) {
@@ -16,6 +17,7 @@ const ensureUploadDir = (uploadDir: string) => {
 ensureUploadDir(tourUploadDir);
 ensureUploadDir(blogUploadDir);
 ensureUploadDir(alertPopupUploadDir);
+ensureUploadDir(helicopterUploadDir);
 
 const createImageStorage = (uploadDir: string) =>
     multer.diskStorage({
@@ -85,6 +87,12 @@ export const uploadAlertPopupImage = multer({
     fileFilter,
     limits: { fileSize: maxImageFileSize },
 }).single("image");
+
+export const uploadHelicopterPicture = multer({
+    storage: createImageStorage(helicopterUploadDir),
+    fileFilter,
+    limits: { fileSize: maxImageFileSize },
+}).single("picture");
 
 export const uploadTourGalleryImage = multer({
     storage: galleryStorage,

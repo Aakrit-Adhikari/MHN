@@ -1,6 +1,8 @@
-import type { BookingStatus, CustomerCategory, PrismaClient } from "@prisma/client";
+import type { CustomerCategory, PrismaClient } from "@prisma/client";
 
-const valueStatuses: BookingStatus[] = ["CONFIRMED", "COMPLETED"];
+export const isRevenueBooking = (booking: { status: string; paymentStatus: string }) => (
+    booking.status === "COMPLETED" && booking.paymentStatus === "PAID_IN_FULL"
+);
 
 export const getCustomerCategory = (
     completedBookingCount: number,
@@ -19,7 +21,8 @@ export const recalculateCustomerAccount = async (
     const aggregate = await prisma.booking.aggregate({
         where: {
             customerAccountId,
-            status: { in: valueStatuses },
+            status: "COMPLETED",
+            paymentStatus: "PAID_IN_FULL",
         },
         _count: { _all: true },
         _sum: { amount: true },
@@ -41,5 +44,3 @@ export const recalculateCustomerAccount = async (
         },
     });
 };
-
-export const valueBookingStatuses = valueStatuses;

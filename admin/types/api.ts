@@ -31,7 +31,8 @@ export type PermissionKey =
   | "VIEW_NAVIGATION"
   | "VIEW_SETTINGS"
   | "VIEW_USERS"
-  | "VIEW_NEWSLETTERS";
+  | "VIEW_NEWSLETTERS"
+  | "VIEW_HELICOPTERS";
 
 export type Permission = {
   id?: string;
@@ -119,6 +120,15 @@ export type AlertPopup = {
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Helicopters = {
+  id: string;
+  helicopterNumber: string;
+  model: string;
+  pictureUrl: string;
   createdAt: string;
   updatedAt: string;
 };

@@ -11,6 +11,7 @@ export const permissions = [
     { key: 'VIEW_SETTINGS', name: 'Settings' },
     { key: 'VIEW_USERS', name: 'Users' },
     { key: 'VIEW_NEWSLETTERS', name: 'Newsletters' },
+    { key: 'VIEW_HELICOPTERS', name: 'Helicopters' },
 ] as const;
 
 export type PermissionKey = (typeof permissions)[number]['key'];
@@ -28,6 +29,7 @@ export const allPermissionKeys = [
     'VIEW_SETTINGS',
     'VIEW_USERS',
     'VIEW_NEWSLETTERS',
+    'VIEW_HELICOPTERS',
 ] as const;
 
 export const rolePermissionDefaults: Record<string, PermissionKey[]> = {
@@ -35,5 +37,5 @@ export const rolePermissionDefaults: Record<string, PermissionKey[]> = {
     ADMIN: [...allPermissionKeys],
     FINANCE: ['VIEW_DASHBOARD', 'VIEW_BOOKINGS', 'VIEW_FINANCE', 'VIEW_REPORTS'],
     HR: ['VIEW_DASHBOARD', 'VIEW_CUSTOMERS', 'VIEW_USERS'],
-    OPERATIONS: ['VIEW_DASHBOARD', 'VIEW_BOOKINGS', 'VIEW_TOURS', 'VIEW_INQUIRIES'],
+    OPERATIONS: ['VIEW_DASHBOARD', 'VIEW_BOOKINGS', 'VIEW_TOURS', 'VIEW_INQUIRIES', 'VIEW_HELICOPTERS'],
 };
