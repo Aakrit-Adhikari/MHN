@@ -58,10 +58,93 @@ export type Tour = {
   maxAltitude?: string | null;
   passengers?: string | null;
   bestSeason?: string | null;
+  quickFacts?: QuickFacts | null;
+  observances?: Observance[] | null;
+  flightFeels?: FlightFeels | null;
+  journey?: JourneyStep[] | null;
+  peaksEncountered?: PeakEncountered[] | null;
+  includedPermits?: IncludedPermit[] | null;
+  dressGuideItems?: DressGuideItem[];
+  faqs?: TourFaq[];
+  gallery?: TourGalleryItem[];
   experience?: string | null;
   region?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type QuickFacts = {
+  duration?: string;
+  maxAltitude?: string;
+  difficultyLevel?: string;
+  privateCharterPrice?: string;
+  hotelPickup?: string;
+  tourFlightDuration?: string;
+  minRecommendedAge?: string;
+  idealTime?: string;
+  travelInsurance?: string;
+  helicopterType?: string;
+  bestSeason?: string;
+  mealsIncluded?: string;
+  helicopterCapacity?: string;
+  sharedTourPrice?: string;
+  permitsIncluded?: string;
+};
+
+export type Observance = {
+  topic: string;
+  description: string;
+};
+
+export type FlightFeels = {
+  topic: string;
+  description: string;
+  tourMap?: string;
+};
+
+export type JourneyStep = {
+  stepNo: number;
+  time: string;
+  topic: string;
+  summary: string;
+};
+
+export type PeakEncountered = {
+  peakName: string;
+  rankLabel: string;
+  elevation: string;
+  description: string;
+  tag?: string;
+};
+
+export type DressGuideItem = {
+  id?: string;
+  layer: string;
+  item: string;
+  why: string;
+  sortOrder?: number;
+};
+
+export type TourFaq = {
+  id?: string;
+  question: string;
+  answer: string;
+  sortOrder?: number;
+};
+
+export type TourGalleryItem = {
+  id: string;
+  imageUrl: string;
+  caption?: string | null;
+  sortOrder?: number;
+};
+
+export type IncludedPermit = {
+  permitName: string;
+  departmentOrMunicipality: string;
+  usdAmount: string;
+  nepaliAmount: string;
+  importantNotice: string;
 };
 
 export type BlogPost = {

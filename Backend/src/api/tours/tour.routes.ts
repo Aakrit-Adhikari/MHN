@@ -14,6 +14,10 @@ import {
     tourResponseSchema,
     updateTourSchema,
 } from "../../types/tour.schema.js";
+import { parseTourFormJson } from "./tour-form-json.middleware.js";
+import tourDressGuideRoutes from "./tour-dress-guide.routes.js";
+import tourFaqRoutes from "./tour-faqs.routes.js";
+import tourGalleryRoutes from "./tour-gallery.routes.js";
 
 const router = Router();
 
@@ -35,6 +39,9 @@ const tourInclude = {
         orderBy: { sortOrder: "asc" as const },
     },
     gallery: {
+        orderBy: { sortOrder: "asc" as const },
+    },
+    dressGuideItems: {
         orderBy: { sortOrder: "asc" as const },
     },
 };
@@ -121,7 +128,7 @@ const normalizeTourBody = (body: Record<string, any>) => {
     return body;
 };
 
-router.post("/", authenticate, requireAdmin, uploadTourImages, async (req, res, next) => {
+router.post("/", authenticate, requireAdmin, uploadTourImages, parseTourFormJson, async (req, res, next) => {
     try {
         const validatedData = createTourSchema.parse(normalizeTourBody(req.body));
         const { coverFile, contentFile } = getTourFiles(req.files);
@@ -153,6 +160,12 @@ router.post("/", authenticate, requireAdmin, uploadTourImages, async (req, res, 
                 location: validatedData.location,
                 groupSize: validatedData.groupSize,
                 bestSeason: validatedData.bestSeason,
+                quickFacts: validatedData.quickFacts,
+                observances: validatedData.observances,
+                flightFeels: validatedData.flightFeels,
+                journey: validatedData.journey,
+                peaksEncountered: validatedData.peaksEncountered,
+                includedPermits: validatedData.includedPermits,
                 price: validatedData.price,
                 coverImageUrl: coverFile ? normalizeUploadPath(coverFile.path) : null,
                 contentImageUrl: contentFile ? normalizeUploadPath(contentFile.path) : null,
@@ -170,6 +183,10 @@ router.post("/", authenticate, requireAdmin, uploadTourImages, async (req, res, 
         next(error);
     }
 });
+
+router.use("/:slug/dress-guide", tourDressGuideRoutes);
+router.use("/:slug/faqs", tourFaqRoutes);
+router.use("/:slug/gallery", tourGalleryRoutes);
 
 router.get("/", async (req, res, next) => {
     try {
@@ -212,7 +229,7 @@ router.get("/:slug", async (req, res, next) => {
     }
 });
 
-router.patch("/:slug", authenticate, requireAdmin, uploadTourImages, async (req, res, next) => {
+router.patch("/:slug", authenticate, requireAdmin, uploadTourImages, parseTourFormJson, async (req, res, next) => {
     try {
         const slug = getParam(req.params.slug);
         const { coverFile, contentFile } = getTourFiles(req.files);

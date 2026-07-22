@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -89,31 +88,53 @@ model TourCategory {
 }
 
 model Tour {
-  id              String        @id @default(cuid())
-  categoryId      String?       @map("category_id")
-  slug            String        @unique
-  title           String
-  summary         String
-  description     String
-  metaTitle       String?       @map("meta_title")
-  metaDescription String?       @map("meta_description")
-  duration        String?
-  altitude        String?
-  location        String?
-  groupSize       String?       @map("group_size")
-  bestSeason      String?       @map("best_season")
-  price           Int?
-  coverImageUrl   String?       @map("cover_image_url")
-  contentImageUrl String?       @map("content_image_url")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  category        TourCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  faqs            TourFaq[]
-  gallery         TourGallery[]
-  inquiries       Inquiry[]
-  bookings        Booking[]
+  id               String               @id @default(cuid())
+  categoryId       String?              @map("category_id")
+  slug             String               @unique
+  title            String
+  summary          String
+  description      String
+  metaTitle        String?              @map("meta_title")
+  metaDescription  String?              @map("meta_description")
+  duration         String?
+  altitude         String?
+  location         String?
+  groupSize        String?              @map("group_size")
+  bestSeason       String?              @map("best_season")
+  quickFacts       Json?                @map("quick_facts")
+  observances      Json?
+  flightFeels      Json?                @map("flight_feels")
+  journey          Json?
+  peaksEncountered Json?                @map("peaks_encountered")
+  includedPermits  Json?                @map("included_permits")
+  price            Int?
+  coverImageUrl    String?              @map("cover_image_url")
+  contentImageUrl  String?              @map("content_image_url")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  category         TourCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  faqs             TourFaq[]
+  gallery          TourGallery[]
+  inquiries        Inquiry[]
+  bookings         Booking[]
+  dressGuideItems  TourDressGuideItem[]
 
   @@map("tours")
+}
+
+model TourDressGuideItem {
+  id        String   @id @default(cuid())
+  tourId    String   @map("tour_id")
+  layer     String
+  item      String
+  why       String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tour      Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@map("tour_dress_guide_items")
 }
 
 model TourFaq {

@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { slugify } from "../utils/slugify.js";
+import { quickFactsSchema } from "./quick-facts.schema.js";
+import { observancesSchema } from "./observance.schema.js";
+import { flightFeelsSchema, includedPermitsSchema, journeySchema, peaksEncounteredSchema } from "./tour-details.schema.js";
 
 const tourBaseSchema = z.object({
     title: z.string().min(5, "Title is too short"),
@@ -15,6 +18,12 @@ const tourBaseSchema = z.object({
     location: z.string().nullable().optional(),
     groupSize: z.string().nullable().optional(),
     bestSeason: z.string().nullable().optional(),
+    quickFacts: quickFactsSchema.optional(),
+    observances: observancesSchema.optional(),
+    flightFeels: flightFeelsSchema.optional(),
+    journey: journeySchema.optional(),
+    peaksEncountered: peaksEncounteredSchema.optional(),
+    includedPermits: includedPermitsSchema.optional(),
     contentImageUrl: z.string().nullable().optional(),
 });
 
@@ -45,6 +54,12 @@ export const tourResponseSchema = z.object({
     location: z.string().nullable().optional(),
     groupSize: z.string().nullable().optional(),
     bestSeason: z.string().nullable().optional(),
+    quickFacts: quickFactsSchema.nullable().optional(),
+    observances: observancesSchema.nullable().optional(),
+    flightFeels: flightFeelsSchema.nullable().optional(),
+    journey: journeySchema.nullable().optional(),
+    peaksEncountered: peaksEncounteredSchema.nullable().optional(),
+    includedPermits: includedPermitsSchema.nullable().optional(),
 });
 
 export type TourResponse = z.infer<typeof tourResponseSchema>;

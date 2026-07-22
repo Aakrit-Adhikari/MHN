@@ -9,7 +9,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/State";
 import { apiRequest, getAssetUrl, getStoredToken } from "@/lib/api";
 import { formatDate, money } from "@/lib/format";
 import { useApiData } from "@/lib/useApiData";
-import type { Tour } from "@/types/api";
+import type { DressGuideItem, FlightFeels, IncludedPermit, JourneyStep, Observance, PeakEncountered, QuickFacts, Tour, TourFaq, TourGalleryItem } from "@/types/api";
 
 const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
 
@@ -22,8 +22,41 @@ type TourForm = {
   metaDescription: string;
   priceFrom: string;
   duration: string;
+  quickFacts: QuickFacts;
+  observances: Observance[];
+  flightFeels: FlightFeels | null;
+  journey: JourneyStep[];
+  peaksEncountered: PeakEncountered[];
+  includedPermits: IncludedPermit[];
+  dressGuideItems: DressGuideItem[];
+  faqs: TourFaq[];
   isPublished: boolean;
 };
+
+const quickFactFields: Array<{ key: keyof QuickFacts; label: string; placeholder: string }> = [
+  { key: "duration", label: "Duration", placeholder: "e.g. 4–5 hours" },
+  { key: "maxAltitude", label: "Max altitude", placeholder: "e.g. 5,545 m" },
+  { key: "difficultyLevel", label: "Difficulty level", placeholder: "e.g. Easy" },
+  { key: "privateCharterPrice", label: "Private charter price", placeholder: "e.g. USD 3,500" },
+  { key: "hotelPickup", label: "Hotel pickup", placeholder: "e.g. Included" },
+  { key: "tourFlightDuration", label: "Tour flight duration", placeholder: "e.g. 70 minutes" },
+  { key: "minRecommendedAge", label: "Min. recommended age", placeholder: "e.g. 5 years" },
+  { key: "idealTime", label: "Ideal time", placeholder: "e.g. Early morning" },
+  { key: "travelInsurance", label: "Travel insurance", placeholder: "e.g. Recommended" },
+  { key: "helicopterType", label: "Helicopter type", placeholder: "e.g. Airbus H125" },
+  { key: "bestSeason", label: "Best season", placeholder: "e.g. Mar–May, Sep–Nov" },
+  { key: "mealsIncluded", label: "Meals included", placeholder: "e.g. Breakfast" },
+  { key: "helicopterCapacity", label: "Helicopter capacity", placeholder: "e.g. 5 passengers" },
+  { key: "sharedTourPrice", label: "Shared tour price", placeholder: "e.g. USD 950/person" },
+  { key: "permitsIncluded", label: "Permits included", placeholder: "e.g. All permits included" }
+];
+
+const emptyObservance = (): Observance => ({ topic: "", description: "" });
+const emptyJourneyStep = (stepNo: number): JourneyStep => ({ stepNo, time: "", topic: "", summary: "" });
+const emptyPeak = (): PeakEncountered => ({ peakName: "", rankLabel: "", elevation: "", description: "", tag: "" });
+const emptyPermit = (): IncludedPermit => ({ permitName: "", departmentOrMunicipality: "", usdAmount: "", nepaliAmount: "", importantNotice: "" });
+const emptyDressGuideItem = (): DressGuideItem => ({ layer: "", item: "", why: "" });
+const emptyFaq = (): TourFaq => ({ question: "", answer: "" });
 
 const emptyTour: TourForm = {
   title: "",
@@ -34,6 +67,14 @@ const emptyTour: TourForm = {
   metaDescription: "",
   priceFrom: "",
   duration: "",
+  quickFacts: {},
+  observances: [],
+  flightFeels: null,
+  journey: [],
+  peaksEncountered: [],
+  includedPermits: [],
+  dressGuideItems: [],
+  faqs: [],
   isPublished: true
 };
 
@@ -48,6 +89,14 @@ function toForm(tour?: Tour): TourForm {
     metaDescription: tour.metaDescription ?? "",
     priceFrom: tour.priceFrom || tour.price ? String(tour.priceFrom ?? tour.price) : "",
     duration: tour.duration ?? "",
+    quickFacts: tour.quickFacts ?? {},
+    observances: tour.observances ?? [],
+    flightFeels: tour.flightFeels ?? null,
+    journey: tour.journey ?? [],
+    peaksEncountered: tour.peaksEncountered ?? [],
+    includedPermits: tour.includedPermits ?? [],
+    dressGuideItems: tour.dressGuideItems ?? [],
+    faqs: tour.faqs ?? [],
     isPublished: tour.isPublished ?? true
   };
 }
@@ -74,6 +123,9 @@ export default function ToursPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [gallery, setGallery] = useState<TourGalleryItem[]>([]);
+  const [galleryUploads, setGalleryUploads] = useState<Array<{ file: File | null; caption: string }>>([]);
+  const [removedGalleryIds, setRemovedGalleryIds] = useState<string[]>([]);
   const editorConfig = useMemo<JoditEditorProps["config"]>(
     () => ({
       height: 380,
@@ -123,6 +175,9 @@ export default function ToursPage() {
     setEditing(null);
     setForm(emptyTour);
     setPhoto(null);
+    setGallery([]);
+    setGalleryUploads([]);
+    setRemovedGalleryIds([]);
     setActionError("");
     setOpen(true);
   }
@@ -131,6 +186,9 @@ export default function ToursPage() {
     setEditing(tour);
     setForm(toForm(tour));
     setPhoto(null);
+    setGallery(tour.gallery ?? []);
+    setGalleryUploads([]);
+    setRemovedGalleryIds([]);
     setActionError("");
     setOpen(true);
   }
@@ -159,17 +217,66 @@ export default function ToursPage() {
     body.append("metaDescription", form.metaDescription);
     if (form.priceFrom) body.append("priceFrom", form.priceFrom);
     if (form.duration) body.append("duration", form.duration);
+    const quickFacts = Object.fromEntries(
+      Object.entries(form.quickFacts).filter(([, value]) => value?.trim())
+    );
+    body.append("quickFacts", JSON.stringify(quickFacts));
+    body.append("observances", JSON.stringify(
+      form.observances.filter((observance) => observance.topic.trim() || observance.description.trim())
+    ));
+    if (form.flightFeels?.topic || form.flightFeels?.description || form.flightFeels?.tourMap) {
+      body.append("flightFeels", JSON.stringify(form.flightFeels));
+    }
+    body.append("journey", JSON.stringify(form.journey.filter((item) => item.time.trim() || item.topic.trim() || item.summary.trim())));
+    body.append("peaksEncountered", JSON.stringify(form.peaksEncountered.filter((item) => item.peakName.trim())));
+    body.append("includedPermits", JSON.stringify(form.includedPermits.filter((item) => Object.values(item).some((value) => value.trim()))));
     body.append("isPublished", String(form.isPublished));
     if (photo) body.append("photo", photo);
 
     try {
-      await apiRequest(editing ? `/tours/${editing.slug}` : "/tours", {
+      const savedTour = await apiRequest<Tour>(editing ? `/tours/${editing.slug}` : "/tours", {
         method: editing ? "PATCH" : "POST",
         token: getStoredToken(),
         body
       });
+      const tourSlug = savedTour.data?.slug ?? editing?.slug;
+      if (!tourSlug) throw new Error("Tour was saved but its slug could not be resolved.");
+
+      await apiRequest(`/tours/${tourSlug}/dress-guide`, {
+        method: "PUT",
+        token: getStoredToken(),
+        body: JSON.stringify({ items: form.dressGuideItems })
+      });
+
+      if (editing?.faqs?.length) {
+        await Promise.all(editing.faqs.filter((faq) => faq.id).map((faq) => apiRequest(`/tours/${tourSlug}/faqs/${faq.id}`, {
+          method: "DELETE",
+          token: getStoredToken()
+        })));
+      }
+      for (const faq of form.faqs) {
+        await apiRequest(`/tours/${tourSlug}/faqs`, {
+          method: "POST",
+          token: getStoredToken(),
+          body: JSON.stringify({ question: faq.question, answer: faq.answer })
+        });
+      }
+
+      await Promise.all(removedGalleryIds.map((id) => apiRequest(`/tours/${tourSlug}/gallery/${id}`, {
+        method: "DELETE",
+        token: getStoredToken()
+      })));
+      for (const upload of galleryUploads) {
+        if (!upload.file) continue;
+        const galleryBody = new FormData();
+        galleryBody.append("image", upload.file);
+        if (upload.caption) galleryBody.append("caption", upload.caption);
+        await apiRequest(`/tours/${tourSlug}/gallery`, { method: "POST", token: getStoredToken(), body: galleryBody });
+      }
       setOpen(false);
       setPhoto(null);
+      setGalleryUploads([]);
+      setRemovedGalleryIds([]);
       reload();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Unable to save tour.");
@@ -298,6 +405,272 @@ export default function ToursPage() {
                 Duration
                 <input value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} placeholder="4.5 hrs" />
               </label>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Quick Facts</summary>
+                <p>Add only the facts that apply to this tour.</p>
+                <div className="form-grid mt-3">
+                  {quickFactFields.map(({ key, label, placeholder }) => (
+                    <label key={key}>
+                      {label}
+                      <input
+                        value={form.quickFacts[key] ?? ""}
+                        onChange={(event) => setForm({
+                          ...form,
+                          quickFacts: { ...form.quickFacts, [key]: event.target.value }
+                        })}
+                        placeholder={placeholder}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Observance</summary>
+                <p>Add the tour highlights visitors will observe during this experience.</p>
+                <div className="mt-3 space-y-3">
+                  {form.observances.map((observance, index) => (
+                    <div className="observance-row" key={index}>
+                      <label>
+                        Topic
+                        <input
+                          value={observance.topic}
+                          onChange={(event) => setForm({
+                            ...form,
+                            observances: form.observances.map((item, itemIndex) => itemIndex === index
+                              ? { ...item, topic: event.target.value }
+                              : item)
+                          })}
+                          placeholder="e.g. Everest Base Camp Flyover"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Description
+                        <textarea
+                          value={observance.description}
+                          onChange={(event) => setForm({
+                            ...form,
+                            observances: form.observances.map((item, itemIndex) => itemIndex === index
+                              ? { ...item, description: event.target.value }
+                              : item)
+                          })}
+                          placeholder="Describe what visitors will see or experience."
+                          rows={2}
+                          required
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="icon-btn observance-remove"
+                        onClick={() => setForm({ ...form, observances: form.observances.filter((_, itemIndex) => itemIndex !== index) })}
+                        aria-label={`Remove observance ${index + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" onClick={() => setForm({ ...form, observances: [...form.observances, emptyObservance()] })}>
+                    <Plus className="h-4 w-4" /> Add Observance
+                  </button>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Flight Feels</summary>
+                <p>Add the primary flight experience and an optional tour-map link.</p>
+                <div className="mt-3 space-y-3">
+                  <label>
+                    Topic
+                    <input
+                      value={form.flightFeels?.topic ?? ""}
+                      onChange={(event) => setForm({ ...form, flightFeels: { ...(form.flightFeels ?? { description: "", tourMap: "" }), topic: event.target.value } })}
+                      placeholder="e.g. A front-row Himalayan experience"
+                    />
+                  </label>
+                  <label>
+                    Tour Map URL
+                    <input
+                      type="url"
+                      value={form.flightFeels?.tourMap ?? ""}
+                      onChange={(event) => setForm({ ...form, flightFeels: { ...(form.flightFeels ?? { topic: "", description: "" }), tourMap: event.target.value } })}
+                      placeholder="https://..."
+                    />
+                  </label>
+                  <div className="rich-editor-field">
+                    <span className="rich-editor-label">Description</span>
+                    <JoditEditor
+                      value={form.flightFeels?.description ?? ""}
+                      config={{ ...editorConfig, height: 220 }}
+                      onBlur={(description) => setForm({ ...form, flightFeels: { ...(form.flightFeels ?? { topic: "", tourMap: "" }), description } })}
+                    />
+                  </div>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Journey</summary>
+                <p>Add the tour journey steps in the order visitors experience them.</p>
+                <div className="mt-3 space-y-3">
+                  {form.journey.map((step, index) => (
+                    <div className="tour-repeatable-row" key={index}>
+                      <label>
+                        Step No.
+                        <input type="number" min="1" value={step.stepNo} onChange={(event) => setForm({ ...form, journey: form.journey.map((item, itemIndex) => itemIndex === index ? { ...item, stepNo: Number(event.target.value) } : item) })} required />
+                      </label>
+                      <label>
+                        Time
+                        <input value={step.time} onChange={(event) => setForm({ ...form, journey: form.journey.map((item, itemIndex) => itemIndex === index ? { ...item, time: event.target.value } : item) })} placeholder="e.g. 06:30 AM" required />
+                      </label>
+                      <label>
+                        Topic
+                        <input value={step.topic} onChange={(event) => setForm({ ...form, journey: form.journey.map((item, itemIndex) => itemIndex === index ? { ...item, topic: event.target.value } : item) })} placeholder="e.g. Hotel pickup" required />
+                      </label>
+                      <label>
+                        Summary
+                        <textarea value={step.summary} onChange={(event) => setForm({ ...form, journey: form.journey.map((item, itemIndex) => itemIndex === index ? { ...item, summary: event.target.value } : item) })} rows={2} required />
+                      </label>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => setForm({ ...form, journey: form.journey.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Remove journey step ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" onClick={() => setForm({ ...form, journey: [...form.journey, emptyJourneyStep(form.journey.length + 1)] })}><Plus className="h-4 w-4" /> Add Journey Step</button>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Peaks Encountered</summary>
+                <p>Add every peak featured during the tour, matching the peak-card layout.</p>
+                <div className="mt-3 space-y-3">
+                  {form.peaksEncountered.map((peak, index) => (
+                    <div className="tour-repeatable-row" key={index}>
+                      <label>
+                        Rank Label
+                        <input value={peak.rankLabel} onChange={(event) => setForm({ ...form, peaksEncountered: form.peaksEncountered.map((item, itemIndex) => itemIndex === index ? { ...item, rankLabel: event.target.value } : item) })} placeholder="e.g. World's highest" required />
+                      </label>
+                      <label>
+                        Peak Name
+                        <input value={peak.peakName} onChange={(event) => setForm({ ...form, peaksEncountered: form.peaksEncountered.map((item, itemIndex) => itemIndex === index ? { ...item, peakName: event.target.value } : item) })} placeholder="e.g. Mount Everest" required />
+                      </label>
+                      <label>
+                        Elevation
+                        <input value={peak.elevation} onChange={(event) => setForm({ ...form, peaksEncountered: form.peaksEncountered.map((item, itemIndex) => itemIndex === index ? { ...item, elevation: event.target.value } : item) })} placeholder="e.g. 8,848 m / 29,032 ft" required />
+                      </label>
+                      <label>
+                        Description
+                        <textarea value={peak.description} onChange={(event) => setForm({ ...form, peaksEncountered: form.peaksEncountered.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item) })} rows={2} required />
+                      </label>
+                      <label>
+                        Tag (optional)
+                        <input value={peak.tag ?? ""} onChange={(event) => setForm({ ...form, peaksEncountered: form.peaksEncountered.map((item, itemIndex) => itemIndex === index ? { ...item, tag: event.target.value } : item) })} placeholder="e.g. EBC flyover" />
+                      </label>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => setForm({ ...form, peaksEncountered: form.peaksEncountered.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Remove peak ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" onClick={() => setForm({ ...form, peaksEncountered: [...form.peaksEncountered, emptyPeak()] })}><Plus className="h-4 w-4" /> Add Peak</button>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Dress Guide</summary>
+                <p>Add the layers visitors should wear, including the item and why it is important.</p>
+                <div className="mt-3 space-y-3">
+                  {form.dressGuideItems.map((guideItem, index) => (
+                    <div className="tour-repeatable-row" key={guideItem.id ?? index}>
+                      <label>
+                        Layer
+                        <input value={guideItem.layer} onChange={(event) => setForm({ ...form, dressGuideItems: form.dressGuideItems.map((item, itemIndex) => itemIndex === index ? { ...item, layer: event.target.value } : item) })} placeholder="e.g. Base layer" required />
+                      </label>
+                      <label>
+                        Item
+                        <input value={guideItem.item} onChange={(event) => setForm({ ...form, dressGuideItems: form.dressGuideItems.map((item, itemIndex) => itemIndex === index ? { ...item, item: event.target.value } : item) })} placeholder="e.g. Thermal top and bottom" required />
+                      </label>
+                      <label>
+                        Why
+                        <textarea value={guideItem.why} onChange={(event) => setForm({ ...form, dressGuideItems: form.dressGuideItems.map((item, itemIndex) => itemIndex === index ? { ...item, why: event.target.value } : item) })} rows={2} required />
+                      </label>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => setForm({ ...form, dressGuideItems: form.dressGuideItems.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Remove dress guide item ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" onClick={() => setForm({ ...form, dressGuideItems: [...form.dressGuideItems, emptyDressGuideItem()] })}><Plus className="h-4 w-4" /> Add Dress Guide Item</button>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Included Permits</summary>
+                <p>Add each permit included in this tour’s price.</p>
+                <div className="mt-3 space-y-3">
+                  {form.includedPermits.map((permit, index) => (
+                    <div className="tour-repeatable-row" key={index}>
+                      <label>
+                        Permit Name
+                        <input value={permit.permitName} onChange={(event) => setForm({ ...form, includedPermits: form.includedPermits.map((item, itemIndex) => itemIndex === index ? { ...item, permitName: event.target.value } : item) })} required />
+                      </label>
+                      <label>
+                        Department / Municipality
+                        <input value={permit.departmentOrMunicipality} onChange={(event) => setForm({ ...form, includedPermits: form.includedPermits.map((item, itemIndex) => itemIndex === index ? { ...item, departmentOrMunicipality: event.target.value } : item) })} required />
+                      </label>
+                      <label>
+                        USD Amount
+                        <input value={permit.usdAmount} onChange={(event) => setForm({ ...form, includedPermits: form.includedPermits.map((item, itemIndex) => itemIndex === index ? { ...item, usdAmount: event.target.value } : item) })} placeholder="e.g. USD 50" required />
+                      </label>
+                      <label>
+                        Nepali Amount
+                        <input value={permit.nepaliAmount} onChange={(event) => setForm({ ...form, includedPermits: form.includedPermits.map((item, itemIndex) => itemIndex === index ? { ...item, nepaliAmount: event.target.value } : item) })} placeholder="e.g. NPR 6,500" required />
+                      </label>
+                      <label>
+                        Important Notice
+                        <textarea value={permit.importantNotice} onChange={(event) => setForm({ ...form, includedPermits: form.includedPermits.map((item, itemIndex) => itemIndex === index ? { ...item, importantNotice: event.target.value } : item) })} rows={2} required />
+                      </label>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => setForm({ ...form, includedPermits: form.includedPermits.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Remove permit ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" onClick={() => setForm({ ...form, includedPermits: [...form.includedPermits, emptyPermit()] })}><Plus className="h-4 w-4" /> Add Permit</button>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>Gallery</summary>
+                <p><strong>Maximum 9 images can be stored.</strong> {gallery.length + galleryUploads.length} of 9 image slots used.</p>
+                <div className="mt-3 space-y-3">
+                  {gallery.map((item) => (
+                    <div className="tour-repeatable-row" key={item.id}>
+                      <img className="gallery-admin-preview" src={getAssetUrl(item.imageUrl)} alt={item.caption ?? "Gallery image"} />
+                      <span>{item.caption || "Gallery image"}</span>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => {
+                        setGallery(gallery.filter((galleryItem) => galleryItem.id !== item.id));
+                        setRemovedGalleryIds([...removedGalleryIds, item.id]);
+                      }} aria-label="Remove gallery image"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  {galleryUploads.map((upload, index) => (
+                    <div className="tour-repeatable-row" key={index}>
+                      <label>
+                        Image
+                        <input type="file" accept="image/*" onChange={(event) => setGalleryUploads(galleryUploads.map((item, itemIndex) => itemIndex === index ? { ...item, file: event.target.files?.[0] ?? null } : item))} required />
+                      </label>
+                      <label>
+                        Caption (optional)
+                        <input value={upload.caption} onChange={(event) => setGalleryUploads(galleryUploads.map((item, itemIndex) => itemIndex === index ? { ...item, caption: event.target.value } : item))} />
+                      </label>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => setGalleryUploads(galleryUploads.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove new gallery image ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" disabled={gallery.length + galleryUploads.length >= 9} onClick={() => setGalleryUploads([...galleryUploads, { file: null, caption: "" }])}><Plus className="h-4 w-4" /> Add Gallery Image</button>
+                </div>
+              </details>
+              <details className="md:col-span-2 quick-facts-dropdown">
+                <summary>FAQs</summary>
+                <p>Add as many frequently asked questions as this tour needs.</p>
+                <div className="mt-3 space-y-3">
+                  {form.faqs.map((faq, index) => (
+                    <div className="tour-repeatable-row" key={faq.id ?? index}>
+                      <label>
+                        Question
+                        <input value={faq.question} onChange={(event) => setForm({ ...form, faqs: form.faqs.map((item, itemIndex) => itemIndex === index ? { ...item, question: event.target.value } : item) })} required />
+                      </label>
+                      <label>
+                        Answer
+                        <textarea value={faq.answer} onChange={(event) => setForm({ ...form, faqs: form.faqs.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item) })} rows={3} required />
+                      </label>
+                      <button type="button" className="icon-btn observance-remove" onClick={() => setForm({ ...form, faqs: form.faqs.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Remove FAQ ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary" onClick={() => setForm({ ...form, faqs: [...form.faqs, emptyFaq()] })}><Plus className="h-4 w-4" /> Add FAQ</button>
+                </div>
+              </details>
               <label className="md:col-span-2">
                 Summary
                 <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} required minLength={10} maxLength={255} rows={3} />
